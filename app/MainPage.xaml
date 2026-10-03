@@ -1,0 +1,146 @@
+<Page
+    x:Class="PsXbox.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    RequestedTheme="Dark"
+    Background="#FF0E1015">
+
+    <Page.Resources>
+        <Style x:Key="PanelTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="34"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Opacity" Value="0.7"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="MinWidth" Value="140"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <!-- Consoles (home) -->
+        <Grid x:Name="HomePanel" Margin="48,27,48,27">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="170"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0">
+                <TextBlock Text="PS Xbox" Style="{StaticResource PanelTitle}"/>
+                <TextBlock Style="{StaticResource Hint}"
+                           Text="Remote Play for PS4 / PS5 on your local network. Select a console to register it or start streaming."/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,16,0,12">
+                <Button x:Name="RefreshButton" Content="Refresh" Click="OnRefreshClick"/>
+                <Button x:Name="AddIpButton" Content="Add by IP" Click="OnAddIpClick"/>
+                <Button x:Name="SettingsButton" Content="Settings" Click="OnSettingsClick"/>
+            </StackPanel>
+
+            <ListView x:Name="ConsoleList" Grid.Row="2"
+                      SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnConsoleClicked"
+                      XYFocusKeyboardNavigation="Enabled">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontSize="20" Margin="0,10" TextWrapping="Wrap"/>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock x:Name="StatusText" Grid.Row="3" FontSize="18" Margin="0,8" TextWrapping="Wrap"/>
+
+            <ScrollViewer x:Name="LogScroll" Grid.Row="4" Background="#FF07080B" Padding="8"
+                          IsTabStop="False" VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="12" Opacity="0.75" TextWrapping="Wrap"/>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Registration -->
+        <ScrollViewer x:Name="RegisterPanel" Visibility="Collapsed" Margin="48,27,48,27">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                <TextBlock Text="Register console" Style="{StaticResource PanelTitle}"/>
+                <TextBlock x:Name="RegisterTargetText" FontSize="20" Margin="0,0,0,12"/>
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,16">
+                    <Run Text="On the PlayStation open:"/>
+                    <LineBreak/>
+                    <Run Text="PS5: Settings &gt; System &gt; Remote Play &gt; Link Device"/>
+                    <LineBreak/>
+                    <Run Text="PS4: Settings &gt; Remote Play Connection Settings &gt; Add Device"/>
+                    <LineBreak/>
+                    <Run Text="and enter the 8-digit code it shows. Remote Play must be enabled on the console."/>
+                </TextBlock>
+                <TextBox x:Name="AccountIdBox" Header="PSN Account ID (base64, e.g. AbCdEfGhIjk=)" Margin="0,0,0,12" IsSpellCheckEnabled="False"/>
+                <TextBox x:Name="PinBox" Header="PIN" InputScope="Number" MaxLength="8" Margin="0,0,0,16"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="RegisterButton" Content="Register" Click="OnRegisterClick"/>
+                    <Button Content="Cancel" Click="OnBackToHomeClick"/>
+                </StackPanel>
+                <TextBlock x:Name="RegisterStatus" FontSize="18" Margin="0,16,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Settings -->
+        <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed" Margin="48,27,48,27">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                <TextBlock Text="Settings" Style="{StaticResource PanelTitle}"/>
+                <ComboBox x:Name="ResolutionBox" Header="Resolution" Margin="0,8" MinWidth="300">
+                    <ComboBoxItem Content="1080p" Tag="4"/>
+                    <ComboBoxItem Content="720p" Tag="3"/>
+                    <ComboBoxItem Content="540p" Tag="2"/>
+                    <ComboBoxItem Content="360p" Tag="1"/>
+                </ComboBox>
+                <ComboBox x:Name="FpsBox" Header="Frame rate" Margin="0,8" MinWidth="300">
+                    <ComboBoxItem Content="60 fps" Tag="60"/>
+                    <ComboBoxItem Content="30 fps" Tag="30"/>
+                </ComboBox>
+                <ComboBox x:Name="CodecBox" Header="Video codec" Margin="0,8" MinWidth="300">
+                    <ComboBoxItem Content="H.264" Tag="0"/>
+                    <ComboBoxItem Content="H.265 / HEVC (PS5 only)" Tag="1"/>
+                </ComboBox>
+                <TextBox x:Name="BitrateBox" Header="Bitrate in kbps (empty = default)" InputScope="Number" Margin="0,8"/>
+                <TextBox x:Name="SettingsAccountIdBox" Header="PSN Account ID (base64)" Margin="0,8" IsSpellCheckEnabled="False"/>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Content="Save" Click="OnSaveSettingsClick"/>
+                    <Button Content="Cancel" Click="OnBackToHomeClick"/>
+                </StackPanel>
+                <TextBlock Text="Registered consoles" FontSize="22" Margin="0,32,0,8"/>
+                <TextBlock x:Name="RegisteredList" Style="{StaticResource Hint}"/>
+                <Button Content="Forget all registered consoles" Click="OnForgetConsolesClick" Margin="0,12,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Add console by IP -->
+        <StackPanel x:Name="AddIpPanel" Visibility="Collapsed" Margin="48,27,48,27" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Text="Add console by IP" Style="{StaticResource PanelTitle}"/>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,16"
+                       Text="Use this if your console is not found automatically. The address is probed together with the normal LAN discovery."/>
+            <TextBox x:Name="IpBox" Header="IPv4 address (e.g. 192.168.1.50)" InputScope="Number" Margin="0,0,0,16"/>
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Add" Click="OnAddIpConfirmClick"/>
+                <Button Content="Cancel" Click="OnBackToHomeClick"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Stream (full screen, ignores TV safe area) -->
+        <Grid x:Name="StreamPanel" Visibility="Collapsed" Background="Black">
+            <SwapChainPanel x:Name="VideoPanel"
+                            SizeChanged="OnVideoPanelSizeChanged"
+                            CompositionScaleChanged="OnVideoPanelScaleChanged"/>
+            <Border x:Name="StreamOverlay" Background="#B0000000" Padding="24,12"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,60" CornerRadius="6">
+                <TextBlock x:Name="StreamStatus" FontSize="20" TextAlignment="Center" TextWrapping="Wrap"/>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

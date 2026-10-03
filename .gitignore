@@ -1,0 +1,9 @@
+build/
+packages/
+vcpkg_installed/
+AppPackages/
+BundleArtifacts/
+Generated Files/
+.vs/
+*.user
+*.pfx
