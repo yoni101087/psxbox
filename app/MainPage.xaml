@@ -37,7 +37,14 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0">
-                <TextBlock Text="PS Xbox" Style="{StaticResource PanelTitle}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <!-- PlayStation button symbols: triangle, circle, cross, square -->
+                    <Polygon Points="15,3 28,26 2,26" Stroke="#FF2FCC9E" StrokeThickness="3" StrokeLineJoin="Round" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Ellipse Width="26" Height="26" Stroke="#FFFF5C6C" StrokeThickness="3" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Path Data="M3,3 L25,25 M25,3 L3,25" Stroke="#FF6FA8FF" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Rectangle Width="24" Height="24" Stroke="#FFF28BD7" StrokeThickness="3" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <TextBlock Text="PS Xbox" Style="{StaticResource PanelTitle}" Margin="0" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Style="{StaticResource Hint}"
                            Text="Remote Play for PS4 / PS5 on your local network. Select a console to register it or start streaming."/>
             </StackPanel>
@@ -46,6 +53,7 @@
                 <Button x:Name="RefreshButton" Content="Refresh" Click="OnRefreshClick"/>
                 <Button x:Name="AddIpButton" Content="Add by IP" Click="OnAddIpClick"/>
                 <Button x:Name="SettingsButton" Content="Settings" Click="OnSettingsClick"/>
+                <Button x:Name="ControlsButton" Content="Controls" Click="OnControlsClick"/>
             </StackPanel>
 
             <ListView x:Name="ConsoleList" Grid.Row="2"
@@ -80,7 +88,8 @@
                     <LineBreak/>
                     <Run Text="and enter the 8-digit code it shows. Remote Play must be enabled on the console."/>
                 </TextBlock>
-                <TextBox x:Name="AccountIdBox" Header="PSN Account ID (base64, e.g. AbCdEfGhIjk=)" Margin="0,0,0,12" IsSpellCheckEnabled="False"/>
+                <Button x:Name="RegisterSignInButton" Content="Sign in with PSN" Click="OnPsnSignInClick" Margin="0,0,0,8"/>
+                <TextBox x:Name="AccountIdBox" Header="PSN Account ID (filled in by Sign in with PSN)" Margin="0,0,0,12" IsSpellCheckEnabled="False"/>
                 <TextBox x:Name="PinBox" Header="PIN" InputScope="Number" MaxLength="8" Margin="0,0,0,16"/>
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="RegisterButton" Content="Register" Click="OnRegisterClick"/>
@@ -109,7 +118,9 @@
                     <ComboBoxItem Content="H.265 / HEVC (PS5 only)" Tag="1"/>
                 </ComboBox>
                 <TextBox x:Name="BitrateBox" Header="Bitrate in kbps (empty = default)" InputScope="Number" Margin="0,8"/>
-                <TextBox x:Name="SettingsAccountIdBox" Header="PSN Account ID (base64)" Margin="0,8" IsSpellCheckEnabled="False"/>
+                <TextBox x:Name="SettingsAccountIdBox" Header="PSN Account ID (filled in by Sign in with PSN)" Margin="0,8" IsSpellCheckEnabled="False"/>
+                <Button x:Name="SettingsSignInButton" Content="Sign in with PSN" Click="OnPsnSignInClick" Margin="0,4,0,0"/>
+                <TextBlock x:Name="SettingsSignInStatus" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
                 <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                     <Button Content="Save" Click="OnSaveSettingsClick"/>
                     <Button Content="Cancel" Click="OnBackToHomeClick"/>
@@ -119,6 +130,159 @@
                 <Button Content="Forget all registered consoles" Click="OnForgetConsolesClick" Margin="0,12,0,0"/>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Controls guide: which Xbox buttons are which PlayStation buttons -->
+        <Grid x:Name="ControlsPanel" Visibility="Collapsed" Margin="48,27,48,27">
+            <Grid.Resources>
+                <Storyboard x:Name="ControlsPulse" RepeatBehavior="Forever" AutoReverse="True">
+                    <DoubleAnimation Storyboard.TargetName="ViewGlow" Storyboard.TargetProperty="Opacity" From="0.3" To="1" Duration="0:0:0.8"/>
+                    <DoubleAnimation Storyboard.TargetName="MenuGlow" Storyboard.TargetProperty="Opacity" From="0.3" To="1" Duration="0:0:0.8"/>
+                </Storyboard>
+            </Grid.Resources>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="11*"/>
+                <ColumnDefinition Width="9*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                <TextBlock Text="Controls" Style="{StaticResource PanelTitle}"/>
+                <TextBlock FontSize="22" TextWrapping="Wrap">
+                    <Run Text="PS button: press"/>
+                    <Run Text="View + Menu" Foreground="#FF3DDC84" FontWeight="SemiBold"/>
+                    <Run Text="together. Hold for about 1 second to go to the PS5 home screen."/>
+                </TextBlock>
+            </StackPanel>
+
+            <Viewbox Grid.Row="1" Grid.Column="0" Stretch="Uniform" VerticalAlignment="Top" Margin="0,0,24,0">
+                <Canvas Width="640" Height="420">
+                    <!-- bumpers -->
+                    <Path Data="M120,96 C150,70 210,62 250,70 L246,88 C210,84 160,92 132,110 Z" Fill="#FF56646F"/>
+                    <Path Data="M520,96 C490,70 430,62 390,70 L394,88 C430,84 480,92 508,110 Z" Fill="#FF56646F"/>
+                    <TextBlock Text="LB" FontSize="15" Opacity="0.7" Canvas.Left="150" Canvas.Top="44"/>
+                    <TextBlock Text="RB" FontSize="15" Opacity="0.7" Canvas.Left="472" Canvas.Top="44"/>
+                    <!-- shell -->
+                    <Path Data="M170,92 C240,72 400,72 470,92 C550,112 595,200 610,290 C624,370 590,400 548,394 C500,388 478,330 436,308 L204,308 C162,330 140,388 92,394 C50,400 16,370 30,290 C45,200 90,112 170,92 Z"
+                          Fill="#FF2A343D" Stroke="#FF4C5A66" StrokeThickness="3"/>
+                    <!-- left stick, d-pad, right stick -->
+                    <Ellipse Width="76" Height="76" Fill="#FF56646F" Canvas.Left="158" Canvas.Top="132"/>
+                    <Ellipse Width="52" Height="52" Fill="#FF4C5A66" Canvas.Left="170" Canvas.Top="144"/>
+                    <Path Data="M248,228 h24 v24 h24 v24 h-24 v24 h-24 v-24 h-24 v-24 h24 Z" Fill="#FF56646F"/>
+                    <Ellipse Width="68" Height="68" Fill="#FF56646F" Canvas.Left="358" Canvas.Top="230"/>
+                    <Ellipse Width="46" Height="46" Fill="#FF4C5A66" Canvas.Left="369" Canvas.Top="241"/>
+                    <!-- A B X Y with their PlayStation symbols -->
+                    <Ellipse Width="30" Height="30" Fill="#FF56646F" Canvas.Left="455" Canvas.Top="119"/>
+                    <Ellipse Width="30" Height="30" Fill="#FF56646F" Canvas.Left="425" Canvas.Top="149"/>
+                    <Ellipse Width="30" Height="30" Fill="#FF56646F" Canvas.Left="485" Canvas.Top="149"/>
+                    <Ellipse Width="30" Height="30" Fill="#FF56646F" Canvas.Left="455" Canvas.Top="179"/>
+                    <Polygon Points="470,124 480,142 460,142" Stroke="#FF2FCC9E" StrokeThickness="2.5" StrokeLineJoin="Round"/>
+                    <Rectangle Width="15" Height="15" Stroke="#FFF28BD7" StrokeThickness="2.5" Canvas.Left="432.5" Canvas.Top="156.5"/>
+                    <Ellipse Width="16" Height="16" Stroke="#FFFF5C6C" StrokeThickness="2.5" Canvas.Left="492" Canvas.Top="156"/>
+                    <Path Data="M463,187 L477,201 M477,187 L463,201" Stroke="#FF6FA8FF" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                    <!-- Xbox button: not this one -->
+                    <Ellipse Width="44" Height="44" Fill="#FF56646F" Stroke="#FFFF6B61" StrokeThickness="3" Canvas.Left="298" Canvas.Top="96"/>
+                    <Path Data="M304,102 L336,134 M336,102 L304,134" Stroke="#FFFF6B61" StrokeThickness="4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                    <Line X1="320" Y1="76" X2="320" Y2="94" Stroke="#FFFF6B61" StrokeThickness="2"/>
+                    <TextBlock Text="Xbox button: not this one" FontSize="16" FontWeight="SemiBold" Foreground="#FFFF6B61"
+                               Width="300" TextAlignment="Center" Canvas.Left="170" Canvas.Top="52"/>
+                    <!-- View and Menu, highlighted -->
+                    <Ellipse x:Name="ViewGlow" Width="48" Height="48" Fill="#553DDC84" Canvas.Left="258" Canvas.Top="148"/>
+                    <Ellipse x:Name="MenuGlow" Width="48" Height="48" Fill="#553DDC84" Canvas.Left="334" Canvas.Top="148"/>
+                    <Ellipse Width="26" Height="26" Fill="#FF3DDC84" Canvas.Left="269" Canvas.Top="159"/>
+                    <Ellipse Width="26" Height="26" Fill="#FF3DDC84" Canvas.Left="345" Canvas.Top="159"/>
+                    <Rectangle Width="9" Height="9" Stroke="#FF182027" StrokeThickness="1.8" Canvas.Left="275" Canvas.Top="165"/>
+                    <Rectangle Width="9" Height="9" Fill="#FF3DDC84" Stroke="#FF182027" StrokeThickness="1.8" Canvas.Left="279.5" Canvas.Top="169.5"/>
+                    <Path Data="M352,167 L364,167 M352,172 L364,172 M352,177 L364,177" Stroke="#FF182027" StrokeThickness="2"/>
+                    <!-- labels -->
+                    <Line X1="270" Y1="184" X2="230" Y2="350" Stroke="#FF3DDC84" StrokeThickness="2.5"/>
+                    <Line X1="370" Y1="184" X2="410" Y2="350" Stroke="#FF3DDC84" StrokeThickness="2.5"/>
+                    <TextBlock Text="View" FontSize="22" FontWeight="Bold" Foreground="#FF3DDC84" Width="120" TextAlignment="Center" Canvas.Left="170" Canvas.Top="354"/>
+                    <TextBlock Text="+" FontSize="22" FontWeight="Bold" Foreground="#FF3DDC84" Width="40" TextAlignment="Center" Canvas.Left="300" Canvas.Top="354"/>
+                    <TextBlock Text="Menu" FontSize="22" FontWeight="Bold" Foreground="#FF3DDC84" Width="120" TextAlignment="Center" Canvas.Left="350" Canvas.Top="354"/>
+                    <TextBlock Text="press both at the same time" FontSize="15" Opacity="0.7" Width="300" TextAlignment="Center" Canvas.Left="170" Canvas.Top="388"/>
+                </Canvas>
+            </Viewbox>
+
+            <StackPanel Grid.Row="1" Grid.Column="1">
+                <StackPanel.Resources>
+                    <Style x:Key="Key" TargetType="TextBlock">
+                        <Setter Property="FontSize" Value="19"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Margin" Value="0,5,16,5"/>
+                        <Setter Property="TextWrapping" Value="Wrap"/>
+                    </Style>
+                    <Style x:Key="Does" TargetType="TextBlock">
+                        <Setter Property="FontSize" Value="19"/>
+                        <Setter Property="Opacity" Value="0.75"/>
+                        <Setter Property="Margin" Value="0,5"/>
+                        <Setter Property="TextWrapping" Value="Wrap"/>
+                    </Style>
+                </StackPanel.Resources>
+
+                <TextBlock Text="PlayStation buttons" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Style="{StaticResource Key}" Foreground="#FF3DDC84" Text="Hold View + Menu (1 s)"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource Does}" Foreground="#FF3DDC84" Text="PS5 home screen"/>
+                    <TextBlock Grid.Row="1" Style="{StaticResource Key}" Text="Tap View + Menu"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Does}" Text="Control Center (power, downloads)"/>
+                    <TextBlock Grid.Row="2" Style="{StaticResource Key}" Text="View + LB"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource Does}" Text="Create (Share)"/>
+                    <TextBlock Grid.Row="3" Style="{StaticResource Key}" Text="View"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource Does}" Text="Touchpad click"/>
+                    <TextBlock Grid.Row="4" Style="{StaticResource Key}" Text="Menu"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource Does}" Text="Options"/>
+                    <TextBlock Grid.Row="5" Style="{StaticResource Key}" Text="View + Menu + LB + RB"/>
+                    <TextBlock Grid.Row="5" Grid.Column="1" Style="{StaticResource Does}" Text="Leave the stream"/>
+                </Grid>
+
+                <TextBlock Text="Face buttons" FontSize="24" FontWeight="SemiBold" Margin="0,20,0,6"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Style="{StaticResource Key}" Text="A"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource Does}"><Run Text="✕" Foreground="#FF6FA8FF"/><Run Text="  Cross"/></TextBlock>
+                    <TextBlock Grid.Row="1" Style="{StaticResource Key}" Text="B"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Does}"><Run Text="○" Foreground="#FFFF5C6C"/><Run Text="  Circle"/></TextBlock>
+                    <TextBlock Grid.Row="2" Style="{StaticResource Key}" Text="X"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource Does}"><Run Text="□" Foreground="#FFF28BD7"/><Run Text="  Square"/></TextBlock>
+                    <TextBlock Grid.Row="3" Style="{StaticResource Key}" Text="Y"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource Does}"><Run Text="△" Foreground="#FF2FCC9E"/><Run Text="  Triangle"/></TextBlock>
+                    <TextBlock Grid.Row="4" Style="{StaticResource Key}" Text="LB / RB, LT / RT"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource Does}" Text="L1 / R1, L2 / R2"/>
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0">
+                <Button x:Name="ControlsBackButton" Content="Back" Click="OnBackToHomeClick"/>
+                <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center"
+                           Text="Don't use the big Xbox button while streaming: the Xbox keeps it and opens its own guide."/>
+            </StackPanel>
+        </Grid>
 
         <!-- Add console by IP -->
         <StackPanel x:Name="AddIpPanel" Visibility="Collapsed" Margin="48,27,48,27" MaxWidth="760" HorizontalAlignment="Left">

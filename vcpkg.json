@@ -1,6 +1,7 @@
 {
   "name": "psxbox",
   "version-string": "0.1.0",
+  "builtin-baseline": "469a0504e4a6ebf6173d1c0f51a7fa34c382fd43",
   "dependencies": [
     "openssl",
     "opus"

@@ -19,16 +19,18 @@ namespace winrt::PsXbox::implementation
 		void OnAddIpClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnAddIpConfirmClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnSettingsClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
+		void OnControlsClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnSaveSettingsClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnForgetConsolesClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnBackToHomeClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnRegisterClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
+		fire_and_forget OnPsnSignInClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnConsoleClicked(IInspectable const &sender, Windows::UI::Xaml::Controls::ItemClickEventArgs const &args);
 		void OnVideoPanelSizeChanged(IInspectable const &sender, Windows::UI::Xaml::SizeChangedEventArgs const &args);
 		void OnVideoPanelScaleChanged(Windows::UI::Xaml::Controls::SwapChainPanel const &sender, IInspectable const &args);
 
 	private:
-		enum class Screen { Home, Register, Settings, AddIp, Stream };
+		enum class Screen { Home, Register, Settings, AddIp, Controls, Stream };
 
 		struct ConsoleEntry
 		{

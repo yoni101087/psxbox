@@ -5,6 +5,7 @@
 #endif
 
 #include "src/Logger.h"
+#include "src/PsnAuth.h"
 #include "src/Settings.h"
 
 using namespace winrt;
@@ -143,7 +144,12 @@ namespace winrt::PsXbox::implementation
 		RegisterPanel().Visibility(screen == Screen::Register ? Visibility::Visible : Visibility::Collapsed);
 		SettingsPanel().Visibility(screen == Screen::Settings ? Visibility::Visible : Visibility::Collapsed);
 		AddIpPanel().Visibility(screen == Screen::AddIp ? Visibility::Visible : Visibility::Collapsed);
+		ControlsPanel().Visibility(screen == Screen::Controls ? Visibility::Visible : Visibility::Collapsed);
 		StreamPanel().Visibility(screen == Screen::Stream ? Visibility::Visible : Visibility::Collapsed);
+		if(screen == Screen::Controls)
+			ControlsPulse().Begin();
+		else
+			ControlsPulse().Stop();
 
 		switch(screen)
 		{
@@ -161,6 +167,9 @@ namespace winrt::PsXbox::implementation
 				break;
 			case Screen::AddIp:
 				IpBox().Focus(FocusState::Programmatic);
+				break;
+			case Screen::Controls:
+				ControlsBackButton().Focus(FocusState::Programmatic);
 				break;
 			case Screen::Stream:
 				break;
@@ -354,6 +363,7 @@ namespace winrt::PsXbox::implementation
 		SelectByTag(CodecBox(), s.codec == CHIAKI_CODEC_H264 ? 0 : 1);
 		BitrateBox().Text(s.bitrate_kbps ? to_hstring(s.bitrate_kbps) : hstring());
 		SettingsAccountIdBox().Text(psx::Widen(psx::Settings::Get().PsnAccountId()));
+		SettingsSignInStatus().Text(L"");
 
 		std::string list;
 		for(auto const &h : psx::Settings::Get().Hosts())
@@ -367,6 +377,11 @@ namespace winrt::PsXbox::implementation
 		Show(Screen::Settings);
 	}
 
+	void MainPage::OnControlsClick(IInspectable const &, RoutedEventArgs const &)
+	{
+		Show(Screen::Controls);
+	}
+
 	void MainPage::OnSaveSettingsClick(IInspectable const &, RoutedEventArgs const &)
 	{
 		psx::StreamSettings s;
@@ -375,8 +390,15 @@ namespace winrt::PsXbox::implementation
 		s.codec = SelectedTag(CodecBox(), 0) == 1 ? CHIAKI_CODEC_H265 : CHIAKI_CODEC_H264;
 		std::string bitrate = Trim(psx::Narrow(BitrateBox().Text()));
 		s.bitrate_kbps = bitrate.empty() ? 0 : static_cast<unsigned int>(strtoul(bitrate.c_str(), nullptr, 10));
+		std::string account_input = Trim(psx::Narrow(SettingsAccountIdBox().Text()));
+		std::string account_id = psx::NormalizeAccountId(account_input);
+		if(!account_input.empty() && account_id.empty())
+		{
+			SettingsSignInStatus().Text(L"That PSN Account ID isn't valid. Select Sign in with PSN to fill it in.");
+			return;
+		}
 		psx::Settings::Get().SetStream(s);
-		psx::Settings::Get().SetPsnAccountId(Trim(psx::Narrow(SettingsAccountIdBox().Text())));
+		psx::Settings::Get().SetPsnAccountId(account_id);
 		SetStatus("Settings saved.");
 		Show(Screen::Home);
 	}
@@ -411,7 +433,12 @@ namespace winrt::PsXbox::implementation
 
 	void MainPage::OnRegisterClick(IInspectable const &, RoutedEventArgs const &)
 	{
-		std::string account_id = Trim(psx::Narrow(AccountIdBox().Text()));
+		std::string account_id = psx::NormalizeAccountId(Trim(psx::Narrow(AccountIdBox().Text())));
+		if(account_id.empty())
+		{
+			RegisterStatus().Text(L"Select Sign in with PSN first, so the app knows your PSN Account ID.");
+			return;
+		}
 		std::string pin_str = Trim(psx::Narrow(PinBox().Text()));
 		if(pin_str.size() != 8 || !std::all_of(pin_str.begin(), pin_str.end(), [](char c) { return c >= '0' && c <= '9'; }))
 		{
@@ -444,8 +471,50 @@ namespace winrt::PsXbox::implementation
 		if(!ok)
 		{
 			RegisterButton().IsEnabled(true);
-			RegisterStatus().Text(L"Could not start registration. The PSN Account ID must be 12 base64 characters (8 bytes).");
+			RegisterStatus().Text(L"Could not start registration. Details are in the log on the home screen.");
 		}
+	}
+
+	fire_and_forget MainPage::OnPsnSignInClick(IInspectable const &, RoutedEventArgs const &)
+	{
+		auto weak = get_weak();
+		bool on_register = screen_ == Screen::Register;
+		auto status = [this, on_register](hstring const &text) {
+			(on_register ? RegisterStatus() : SettingsSignInStatus()).Text(text);
+		};
+		RegisterSignInButton().IsEnabled(false);
+		SettingsSignInButton().IsEnabled(false);
+		status(L"Signing in to PSN...");
+
+		hstring id;
+		hstring error;
+		try
+		{
+			id = co_await psx::PsnSignInAsync();
+		}
+		catch(hresult_canceled const &)
+		{
+			error = L"Sign-in canceled.";
+		}
+		catch(hresult_error const &e)
+		{
+			error = L"PSN sign-in failed: " + e.message();
+		}
+
+		auto self = weak.get();
+		if(!self)
+			co_return;
+		RegisterSignInButton().IsEnabled(true);
+		SettingsSignInButton().IsEnabled(true);
+		if(!error.empty())
+		{
+			status(error);
+			co_return;
+		}
+		psx::Settings::Get().SetPsnAccountId(psx::Narrow(id));
+		AccountIdBox().Text(id);
+		SettingsAccountIdBox().Text(id);
+		status(L"Signed in. Your PSN Account ID is filled in.");
 	}
 
 	// ---------------------------------------------------------------- streaming
@@ -515,8 +584,9 @@ namespace winrt::PsXbox::implementation
 				// Hide the hint after a few seconds.
 				auto timer = DispatcherTimer();
 				timer.Interval(std::chrono::seconds(5));
-				timer.Tick([this, timer](auto const &, auto const &) {
-					timer.Stop();
+				// Get the timer from the sender: capturing it would keep it alive forever.
+				timer.Tick([this](IInspectable const &sender, IInspectable const &) {
+					sender.as<DispatcherTimer>().Stop();
 					if(screen_ == Screen::Stream)
 						StreamOverlay().Visibility(Visibility::Collapsed);
 				});

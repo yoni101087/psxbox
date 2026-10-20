@@ -8,8 +8,8 @@
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
     <VcpkgManifestRoot>$(MSBuildThisFileDirectory)</VcpkgManifestRoot>
     <VcpkgInstalledDir>$(MSBuildThisFileDirectory)vcpkg_installed\</VcpkgInstalledDir>
+    <!-- The triplet is already static; VcpkgUseStatic would append "-static" to its name. -->
     <VcpkgTriplet>x64-uwp-psxbox</VcpkgTriplet>
     <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
-    <VcpkgUseStatic>true</VcpkgUseStatic>
   </PropertyGroup>
 </Project>

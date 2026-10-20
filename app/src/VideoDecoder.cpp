@@ -26,6 +26,7 @@ namespace psx
 			&in_info, nullptr, &activates, &count);
 		if(FAILED(hr) || count == 0)
 		{
+			CoTaskMemFree(activates);
 			PSX_LOGE("No %s decoder available (0x%08x)%s", chiaki_codec_name(codec), hr,
 				chiaki_codec_is_h265(codec) ? ". On PC install 'HEVC Video Extensions', or switch to H.264 in Settings." : "");
 			return false;
@@ -43,6 +44,7 @@ namespace psx
 		com_ptr<IMFAttributes> attrs;
 		if(SUCCEEDED(mft_->GetAttributes(attrs.put())))
 		{
+			// Same effect as CODECAPI_AVLowLatencyMode (ICodecAPI is desktop only).
 			attrs->SetUINT32(MF_LOW_LATENCY, TRUE);
 			UINT32 d3d11_aware = 0;
 			if(renderer_->DeviceManager() && SUCCEEDED(attrs->GetUINT32(MF_SA_D3D11_AWARE, &d3d11_aware)) && d3d11_aware)
@@ -52,14 +54,6 @@ namespace psx
 				if(!gpu_)
 					PSX_LOGI("Decoder rejected D3D11 device (0x%08x), using system memory", hr);
 			}
-		}
-		if(auto codec_api = mft_.try_as<ICodecAPI>())
-		{
-			VARIANT v;
-			VariantInit(&v);
-			v.vt = VT_UI4;
-			v.ulVal = 1;
-			codec_api->SetValue(&CODECAPI_AVLowLatencyMode, &v);
 		}
 
 		com_ptr<IMFMediaType> in_type;

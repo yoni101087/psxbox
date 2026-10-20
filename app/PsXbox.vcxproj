@@ -110,6 +110,7 @@
     <ClInclude Include="src\Discovery.h" />
     <ClInclude Include="src\GamepadInput.h" />
     <ClInclude Include="src\Logger.h" />
+    <ClInclude Include="src\PsnAuth.h" />
     <ClInclude Include="src\Registration.h" />
     <ClInclude Include="src\Settings.h" />
     <ClInclude Include="src\StreamSession.h" />
@@ -150,6 +151,7 @@
     <ClCompile Include="src\Discovery.cpp" />
     <ClCompile Include="src\GamepadInput.cpp" />
     <ClCompile Include="src\Logger.cpp" />
+    <ClCompile Include="src\PsnAuth.cpp" />
     <ClCompile Include="src\Registration.cpp" />
     <ClCompile Include="src\Settings.cpp" />
     <ClCompile Include="src\StreamSession.cpp" />

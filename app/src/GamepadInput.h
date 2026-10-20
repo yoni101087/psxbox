@@ -12,6 +12,8 @@ namespace psx
 	//   View + Menu    -> PS button
 	//   View + LB      -> Share / Create
 	//   View + Menu + LB + RB -> leave the stream
+	// View chords are delayed slightly (or sent on release when tapped), so reaching for the quit
+	// combo doesn't press PS on the way.
 	class GamepadInput
 	{
 	public:

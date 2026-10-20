@@ -4,6 +4,7 @@
 
 using namespace winrt;
 using namespace Windows::Foundation;
+using namespace Windows::Foundation::Collections;
 using namespace Windows::Storage;
 using namespace Windows::Security::Cryptography;
 
