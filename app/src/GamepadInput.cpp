@@ -20,11 +20,12 @@ namespace psx
 		Stop();
 	}
 
-	void GamepadInput::Start(StateCallback state_cb, QuitCallback quit_cb)
+	void GamepadInput::Start(StateCallback state_cb, QuitCallback quit_cb, bool ps5_layout)
 	{
 		Stop();
 		state_cb_ = std::move(state_cb);
 		quit_cb_ = std::move(quit_cb);
+		ps5_layout_ = ps5_layout;
 		stop_ = false;
 		thread_ = std::thread([this] {
 			init_apartment(apartment_type::multi_threaded);
@@ -49,7 +50,13 @@ namespace psx
 		if(pads.Size() == 0)
 			pad_.reset();
 		else if(!pad_ || !pads.IndexOf(*pad_, index)) // none yet, or ours was disconnected
+		{
 			pad_ = pads.GetAt(0);
+			// Which controller (or adapter) this is, for recognising adapters later.
+			if(auto raw = RawGameController::FromGameController(*pad_))
+				PSX_LOGI("Controller: %s (vendor 0x%04X, product 0x%04X)", Narrow(raw.DisplayName()).c_str(),
+					raw.HardwareVendorId(), raw.HardwareProductId());
+		}
 		return pad_;
 	}
 
@@ -96,6 +103,10 @@ namespace psx
 		uint32_t chord_leftover = 0;  // Menu (1) / LB (2) / RB (4) still held after View was released
 		uint32_t pulse = 0;           // a tapped chord, sent briefly
 		auto pulse_until = chord_since;
+
+		// What View alone and View + LB send (swapped in the PS5 layout, where View is the Create button).
+		const uint32_t view_alone = ps5_layout_ ? CHIAKI_CONTROLLER_BUTTON_SHARE : CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+		const uint32_t view_lb = ps5_layout_ ? CHIAKI_CONTROLLER_BUTTON_TOUCHPAD : CHIAKI_CONTROLLER_BUTTON_SHARE;
 
 		while(!stop_)
 		{
@@ -145,11 +156,11 @@ namespace psx
 					if(view)
 					{
 						// While View is held, Menu / LB / RB only select the chord.
-						uint32_t c = menu ? CHIAKI_CONTROLLER_BUTTON_PS : lb ? CHIAKI_CONTROLLER_BUTTON_SHARE : CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+						uint32_t c = menu ? CHIAKI_CONTROLLER_BUTTON_PS : lb ? view_lb : view_alone;
 						if(c != chord)
 						{
-							// Letting go of Menu / LB first ends a PS / Share tap; the rest of the View hold does nothing.
-							if(c == CHIAKI_CONTROLLER_BUTTON_TOUCHPAD && chord && !chord_sent && !chord_canceled)
+							// Letting go of Menu / LB first ends a PS / View + LB tap; the rest of the View hold does nothing.
+							if(c == view_alone && chord && !chord_sent && !chord_canceled)
 							{
 								pulse = chord;
 								pulse_until = now + kTapPulse;

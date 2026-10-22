@@ -362,6 +362,7 @@ namespace winrt::PsXbox::implementation
 		SelectByTag(FpsBox(), s.fps);
 		SelectByTag(CodecBox(), s.codec == CHIAKI_CODEC_H264 ? 0 : 1);
 		BitrateBox().Text(s.bitrate_kbps ? to_hstring(s.bitrate_kbps) : hstring());
+		SelectByTag(ControllerBox(), s.ps5_layout ? 1 : 0);
 		SettingsAccountIdBox().Text(psx::Widen(psx::Settings::Get().PsnAccountId()));
 		SettingsSignInStatus().Text(L"");
 
@@ -379,6 +380,10 @@ namespace winrt::PsXbox::implementation
 
 	void MainPage::OnControlsClick(IInspectable const &, RoutedEventArgs const &)
 	{
+		bool ps5 = psx::Settings::Get().Stream().ps5_layout;
+		ViewDoes().Text(ps5 ? L"Create (Share)" : L"Touchpad click");
+		ViewLbDoes().Text(ps5 ? L"Touchpad click" : L"Create (Share)");
+		Ps5LayoutNote().Visibility(ps5 ? Visibility::Visible : Visibility::Collapsed);
 		Show(Screen::Controls);
 	}
 
@@ -390,6 +395,7 @@ namespace winrt::PsXbox::implementation
 		s.codec = SelectedTag(CodecBox(), 0) == 1 ? CHIAKI_CODEC_H265 : CHIAKI_CODEC_H264;
 		std::string bitrate = Trim(psx::Narrow(BitrateBox().Text()));
 		s.bitrate_kbps = bitrate.empty() ? 0 : static_cast<unsigned int>(strtoul(bitrate.c_str(), nullptr, 10));
+		s.ps5_layout = SelectedTag(ControllerBox(), 0) == 1;
 		std::string account_input = Trim(psx::Narrow(SettingsAccountIdBox().Text()));
 		std::string account_id = psx::NormalizeAccountId(account_input);
 		if(!account_input.empty() && account_id.empty())

@@ -95,6 +95,7 @@ namespace psx
 		stream_.fps = static_cast<ChiakiVideoFPSPreset>(GetInt(values, L"fps", CHIAKI_VIDEO_FPS_PRESET_60));
 		stream_.codec = static_cast<ChiakiCodec>(GetInt(values, L"codec", CHIAKI_CODEC_H264));
 		stream_.bitrate_kbps = static_cast<unsigned int>(GetInt(values, L"bitrate_kbps", 0));
+		stream_.ps5_layout = GetInt(values, L"ps5_layout", 0) != 0;
 
 		std::string manual = Narrow(unbox_value_or<hstring>(values.TryLookup(L"manual_addrs"), L""));
 		size_t pos = 0;
@@ -156,6 +157,7 @@ namespace psx
 		values.Insert(L"fps", box_value(static_cast<int32_t>(stream_.fps)));
 		values.Insert(L"codec", box_value(static_cast<int32_t>(stream_.codec)));
 		values.Insert(L"bitrate_kbps", box_value(static_cast<int32_t>(stream_.bitrate_kbps)));
+		values.Insert(L"ps5_layout", box_value(static_cast<int32_t>(stream_.ps5_layout ? 1 : 0)));
 		std::string manual;
 		for(auto const &a : manual_addrs_)
 			manual += a + ";";

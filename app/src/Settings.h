@@ -21,6 +21,8 @@ namespace psx
 		ChiakiVideoFPSPreset fps = CHIAKI_VIDEO_FPS_PRESET_60;
 		ChiakiCodec codec = CHIAKI_CODEC_H264;
 		unsigned int bitrate_kbps = 0; // 0 = preset default
+		// A PS5 controller through an adapter (such as the Brook Wingman XB3), which turns Create into View.
+		bool ps5_layout = false;
 	};
 
 	// Persists everything in ApplicationData.LocalSettings.

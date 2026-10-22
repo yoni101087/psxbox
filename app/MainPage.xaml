@@ -118,6 +118,10 @@
                     <ComboBoxItem Content="H.265 / HEVC (PS5 only)" Tag="1"/>
                 </ComboBox>
                 <TextBox x:Name="BitrateBox" Header="Bitrate in kbps (empty = default)" InputScope="Number" Margin="0,8"/>
+                <ComboBox x:Name="ControllerBox" Header="Controller" Margin="0,8" MinWidth="300">
+                    <ComboBoxItem Content="Xbox controller" Tag="0"/>
+                    <ComboBoxItem Content="PS5 controller through an adapter (Brook Wingman XB3)" Tag="1"/>
+                </ComboBox>
                 <TextBox x:Name="SettingsAccountIdBox" Header="PSN Account ID (filled in by Sign in with PSN)" Margin="0,8" IsSpellCheckEnabled="False"/>
                 <Button x:Name="SettingsSignInButton" Content="Sign in with PSN" Click="OnPsnSignInClick" Margin="0,4,0,0"/>
                 <TextBlock x:Name="SettingsSignInStatus" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
@@ -224,6 +228,8 @@
                 </StackPanel.Resources>
 
                 <TextBlock Text="PlayStation buttons" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBlock x:Name="Ps5LayoutNote" Style="{StaticResource Hint}" Margin="0,0,0,8" Visibility="Collapsed"
+                           Text="PS5 controller layout (Settings): on the PS5 controller, View is Create, Menu is Options, LB / RB are L1 / R1. Its PS button opens the Xbox guide."/>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -242,9 +248,9 @@
                     <TextBlock Grid.Row="1" Style="{StaticResource Key}" Text="Tap View + Menu"/>
                     <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Does}" Text="Control Center (power, downloads)"/>
                     <TextBlock Grid.Row="2" Style="{StaticResource Key}" Text="View + LB"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource Does}" Text="Create (Share)"/>
+                    <TextBlock x:Name="ViewLbDoes" Grid.Row="2" Grid.Column="1" Style="{StaticResource Does}" Text="Create (Share)"/>
                     <TextBlock Grid.Row="3" Style="{StaticResource Key}" Text="View"/>
-                    <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource Does}" Text="Touchpad click"/>
+                    <TextBlock x:Name="ViewDoes" Grid.Row="3" Grid.Column="1" Style="{StaticResource Does}" Text="Touchpad click"/>
                     <TextBlock Grid.Row="4" Style="{StaticResource Key}" Text="Menu"/>
                     <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource Does}" Text="Options"/>
                     <TextBlock Grid.Row="5" Style="{StaticResource Key}" Text="View + Menu + LB + RB"/>

@@ -85,7 +85,8 @@ namespace psx
 				PSX_LOGI("Quit combo pressed");
 				if(!ended_sent_.exchange(true) && callbacks_.ended)
 					callbacks_.ended("");
-			});
+			},
+			settings.ps5_layout);
 		return true;
 	}
 

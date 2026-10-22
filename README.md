@@ -66,6 +66,12 @@ doesn't work, you can type the ID in yourself, in either form:
 
 The app has a **Controls** screen (on the home screen) with a picture of the controller.
 
+**PS5 controller through an adapter** (such as the Brook Wingman XB3): choose it under **Settings →
+Controller**. The adapter makes it an Xbox controller, so Create is View, Options is Menu and L1 / R1 are
+LB / RB in the table below, with one difference: Create alone sends **Create**, and Create + L1 sends the
+**touchpad click**. The controller's PS button opens the Xbox guide; use Create + Options for PS. The
+touchpad surface, motion sensors and adaptive triggers don't pass through the adapter.
+
 | Xbox | PlayStation |
 |---|---|
 | A / B / X / Y | ✕ Cross / ○ Circle / □ Square / △ Triangle |
