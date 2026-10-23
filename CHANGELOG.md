@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2
+## 0.4.3
 
 - **HDR:** a new video codec setting, **H.265 HDR (PS5 only, HDR TV)**. The PS5 streams 10-bit HDR video,
   the app decodes it to P010 and shows it as HDR10, and on Xbox it switches the TV to HDR while HDR frames are
@@ -11,8 +11,11 @@
   message on screen. The Xbox asks once for permission to use the microphone.
 - **Sign in with PSN fixed:** Sony's sign-in page no longer runs in the system's older web view (it stays on
   its loading spinner). It is now shown inside the app with WebView2, the Chromium engine Edge uses, and the
-  app picks up the result by itself once you're signed in. Type with a USB keyboard. **Use Edge instead**
-  remains as a fallback (sign in in Edge, then bring the login code back).
+  app picks up the result by itself once you're signed in. The left stick moves a cursor in the page and A
+  selects; type with a USB keyboard or the on-screen one.
+- **Sign in on your phone:** the sign-in screen also shows a QR code. It opens a page served by the Xbox on
+  your network; sign in to PSN on the phone, paste the address you land on, and the Xbox finishes by itself.
+  (Replaces the Edge fallback, which needed the code copied on the Xbox.)
 - **New dependencies:** WinUI 2 (`Microsoft.UI.Xaml.2.8.appx`) and `Microsoft.VCLibs.x64.14.00.Desktop.appx`,
   needed by WebView2. Install them with the app.
 

@@ -113,6 +113,8 @@
     <ClInclude Include="src\HdrDisplay.h" />
     <ClInclude Include="src\Logger.h" />
     <ClInclude Include="src\MicCapture.h" />
+    <ClInclude Include="src\PhoneSignIn.h" />
+    <ClInclude Include="src\qrcodegen\qrcodegen.hpp" />
     <ClInclude Include="src\PsnAuth.h" />
     <ClInclude Include="src\Registration.h" />
     <ClInclude Include="src\Settings.h" />
@@ -156,6 +158,11 @@
     <ClCompile Include="src\HdrDisplay.cpp" />
     <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\MicCapture.cpp" />
+    <ClCompile Include="src\PhoneSignIn.cpp" />
+    <!-- Project Nayuki's QR Code generator (MIT), v1.8.0, unmodified -->
+    <ClCompile Include="src\qrcodegen\qrcodegen.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\PsnAuth.cpp" />
     <ClCompile Include="src\Registration.cpp" />
     <ClCompile Include="src\Settings.cpp" />

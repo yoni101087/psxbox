@@ -5,6 +5,7 @@
 #include "src/Discovery.h"
 #include "src/HdrDisplay.h"
 #include "src/MicCapture.h"
+#include "src/PhoneSignIn.h"
 #include "src/Registration.h"
 #include "src/StreamSession.h"
 #include "src/VideoRenderer.h"
@@ -27,7 +28,6 @@ namespace winrt::PsXbox::implementation
 		void OnBackToHomeClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnRegisterClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnPsnSignInClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
-		fire_and_forget OnSignInEdgeClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnSignInCancelClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnConsoleClicked(IInspectable const &sender, Windows::UI::Xaml::Controls::ItemClickEventArgs const &args);
 		void OnVideoPanelSizeChanged(IInspectable const &sender, Windows::UI::Xaml::SizeChangedEventArgs const &args);
@@ -63,6 +63,7 @@ namespace winrt::PsXbox::implementation
 		void SignInStatus(hstring const &text);
 		void LeaveSignIn();
 		fire_and_forget FinishSignIn(hstring code_or_address);
+		fire_and_forget StartPhoneSignIn();
 		fire_and_forget StartMicrophone();
 		void ShowStreamMessage(hstring const &text);
 		void LoadSettingsUi();
@@ -81,6 +82,7 @@ namespace winrt::PsXbox::implementation
 		psx::MicCapture mic_;
 		Screen sign_in_from_ = Screen::Register; // where Sign in with PSN was selected
 		bool sign_in_done_ = false;
+		psx::PhoneSignIn phone_sign_in_;
 		bool panel_attached_ = false;
 		psx::StreamSession session_;
 		std::string pending_wake_mac_;

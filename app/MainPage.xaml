@@ -323,15 +323,26 @@
                 <StackPanel>
                     <TextBlock Text="Sign in with PSN" Style="{StaticResource PanelTitle}"/>
                     <TextBlock Style="{StaticResource Hint}"
-                               Text="Sign in with the PSN account you use on the console, using a USB keyboard (Tab moves between fields, Enter confirms). PS Xbox continues by itself once you're signed in."/>
+                               Text="Sign in with the PSN account you use on the console. Move the cursor with the left stick, press A to select a field, and type with a USB keyboard or the on-screen one. PS Xbox continues by itself once you're signed in."/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                    <Button x:Name="SignInEdgeButton" Content="Use Edge instead" Click="OnSignInEdgeClick"/>
                     <Button x:Name="SignInCancelButton" Content="Cancel" Click="OnSignInCancelClick"/>
                 </StackPanel>
             </Grid>
-            <muxc:WebView2 x:Name="SignInWeb" Grid.Row="1"/>
-            <TextBlock x:Name="SignInStatusText" Grid.Row="2" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+            <!-- RequiresPointer: on Xbox the left stick drives a cursor in the page (web content needs it). -->
+            <muxc:WebView2 x:Name="SignInWeb" Grid.Row="1" RequiresPointer="WhenFocused"/>
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <!-- Phone sign-in: scan to open the page the Xbox serves -->
+                <Image x:Name="PhoneQrImage" Stretch="None" VerticalAlignment="Top" Margin="0,0,16,0" Visibility="Collapsed"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="SignInStatusText" Style="{StaticResource Hint}"/>
+                    <TextBlock x:Name="PhoneSignInText" Style="{StaticResource Hint}" FontSize="20" Opacity="1"/>
+                </StackPanel>
+            </Grid>
         </Grid>
 
         <!-- Stream (full screen, ignores TV safe area) -->

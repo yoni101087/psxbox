@@ -58,17 +58,20 @@ your registered consoles and PSN Account ID, while uninstalling deletes them.
 
 The Account ID is not your PSN username (online ID). It's a number PSN assigns to your account, which only
 Sony's servers can look up, and only after you sign in. **Sign in with PSN** does that for you: it shows
-Sony's sign-in page in the app, in the same Chromium engine as Edge. Use a USB keyboard there (Tab moves between
-fields, Enter confirms). Once you're signed in, the app picks up the result by itself and fills in the ID.
+Sony's sign-in page in the app, in the same Chromium engine as Edge. Move the cursor with the left stick, press
+**A** to select a field, and type with a USB keyboard or the on-screen one. Once you're signed in, the app picks
+up the result by itself and fills in the ID.
 
 If your Xbox is an **Xbox One** or **Series S** and the app type is set to **Game**, set it to **App** for the
 sign-in (Dev Home → View details → App type): the Chromium view has been reported to crash those consoles in
 games. You only sign in once.
 
-If Sony's page doesn't work in the app, select **Use Edge instead**: sign in in Edge, which lands on a page
-from `remoteplay.dl.playstation.net` (it may look empty). Its address contains the login code after `code=`;
-go back to PS Xbox and type the code, or paste the whole address, into the box it shows. If neither works,
-you can type the ID in yourself, in either form:
+**Or sign in on your phone:** the sign-in screen also shows a QR code. Scan it with a phone on the same Wi-Fi
+(or open the address shown next to it, like `http://192.168.1.50:8642`). On the page that opens, tap **Sign in
+with PSN**, sign in, then copy the address of the page you land on (`remoteplay.dl.playstation.net/...`), go
+back to that tab, paste it, and tap **Send to the Xbox**. The Xbox finishes by itself.
+
+If neither works, you can type the ID in yourself, in either form:
 
 - **Base64**, 12 characters like `AbCdEfGhIjk=`. To get it on a PC, run
   `python third_party\chiaki-ng\scripts\psn-account-id.py` (needs `pip install requests`), open the link it

@@ -6,6 +6,7 @@
 
 #include "src/Logger.h"
 #include "src/PsnAuth.h"
+#include "src/qrcodegen/qrcodegen.hpp"
 #include "src/Settings.h"
 
 using namespace winrt;
@@ -136,7 +137,7 @@ namespace winrt::PsXbox::implementation
 			if(auto e = args.Exception(); e != hresult{})
 			{
 				PSX_LOGE("WebView2 failed to start: 0x%08x", static_cast<uint32_t>(e));
-				SignInStatus(L"The sign-in view couldn't start. Select Use Edge instead.");
+				SignInStatus(L"The sign-in view couldn't start. Sign in on your phone instead (see below).");
 				return;
 			}
 			auto core = web.CoreWebView2();
@@ -166,10 +167,12 @@ namespace winrt::PsXbox::implementation
 			if(args.IsSuccess())
 			{
 				SignInStatusText().Text(L"");
+				// Into the page, so the cursor and keyboard work there.
+				SignInWeb().Focus(FocusState::Programmatic);
 				return;
 			}
 			PSX_LOGE("PSN sign-in page failed to load (%d)", static_cast<int>(args.WebErrorStatus()));
-			SignInStatus(L"Sony's page didn't load. Check the network, or select Use Edge instead.");
+			SignInStatus(L"Sony's page didn't load. Check the network, or sign in on your phone (see below).");
 		});
 
 		suspend_token_ = Application::Current().Suspending([this](auto const &, SuspendingEventArgs const &) {
@@ -579,8 +582,58 @@ namespace winrt::PsXbox::implementation
 		sign_in_done_ = false;
 		SignInStatus(L"");
 		SignInStatusText().Text(L"Loading Sony's sign-in page...");
+		PhoneSignInText().Text(L"");
 		Show(Screen::SignIn);
 		SignInWeb().Source(psx::PsnLoginUri());
+		StartPhoneSignIn();
+	}
+
+	namespace
+	{
+		// A QR code for text: black modules on white, with the standard 4-module quiet zone, each module
+		// `scale` pixels so the edges stay sharp.
+		Media::Imaging::WriteableBitmap MakeQrCode(std::string const &text, int scale)
+		{
+			auto qr = qrcodegen::QrCode::encodeText(text.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+			const int border = 4;
+			const int side = (qr.getSize() + 2 * border) * scale;
+			Media::Imaging::WriteableBitmap bitmap(side, side);
+			uint8_t *px = bitmap.PixelBuffer().data();
+			for(int y = 0; y < side; y++)
+			{
+				for(int x = 0; x < side; x++)
+				{
+					bool dark = qr.getModule(x / scale - border, y / scale - border);
+					uint8_t v = dark ? 0 : 255;
+					uint8_t *p = px + (static_cast<size_t>(y) * side + x) * 4;
+					p[0] = p[1] = p[2] = v;
+					p[3] = 255;
+				}
+			}
+			bitmap.Invalidate();
+			return bitmap;
+		}
+	}
+
+	fire_and_forget MainPage::StartPhoneSignIn()
+	{
+		// Alternative: sign in on a phone; the page there sends Sony's redirect address back.
+		auto weak = get_weak();
+		hstring address = co_await phone_sign_in_.StartAsync([this, weak](hstring redirect) {
+			RunOnUi([this, weak, redirect] {
+				if(!weak.get() || screen_ != Screen::SignIn || sign_in_done_)
+					return;
+				sign_in_done_ = true;
+				FinishSignIn(redirect);
+			});
+		});
+		if(auto self = weak.get(); self && screen_ == Screen::SignIn && !address.empty())
+		{
+			PhoneQrImage().Source(MakeQrCode(psx::Narrow(address), 5));
+			PhoneQrImage().Visibility(Visibility::Visible);
+			PhoneSignInText().Text(L"Or sign in on your phone (same Wi-Fi): scan this code with its camera, or open " +
+				address + L" in its browser.");
+		}
 	}
 
 	void MainPage::OnSignInCancelClick(IInspectable const &, RoutedEventArgs const &)
@@ -597,6 +650,8 @@ namespace winrt::PsXbox::implementation
 
 	void MainPage::LeaveSignIn()
 	{
+		phone_sign_in_.Stop();
+		PhoneQrImage().Visibility(Visibility::Collapsed);
 		SignInWeb().Source(Uri(L"about:blank"));
 		if(screen_ == Screen::SignIn)
 			Show(sign_in_from_);
@@ -632,83 +687,6 @@ namespace winrt::PsXbox::implementation
 		SettingsAccountIdBox().Text(id);
 		SignInStatus(L"Signed in. Your PSN Account ID is filled in.");
 	}
-
-	fire_and_forget MainPage::OnSignInEdgeClick(IInspectable const &, RoutedEventArgs const &)
-	{
-		// Fallback: sign in in Edge and bring the code back by hand.
-		auto weak = get_weak();
-		LeaveSignIn();
-		bool on_register = sign_in_from_ == Screen::Register;
-		auto status = [this, on_register](hstring const &text) {
-			(on_register ? RegisterStatus() : SettingsSignInStatus()).Text(text);
-		};
-		RegisterSignInButton().IsEnabled(false);
-		SettingsSignInButton().IsEnabled(false);
-		status(L"Opening Edge...");
-
-		hstring id;
-		hstring error;
-		try
-		{
-			// Sign in in Edge; the user brings the login code back (see PsnAuth.h).
-			if(!co_await Windows::System::Launcher::LaunchUriAsync(psx::PsnLoginUri()))
-				throw hresult_error(E_FAIL, L"Edge could not be opened");
-
-			TextBlock steps;
-			steps.TextWrapping(TextWrapping::Wrap);
-			steps.Text(L"Edge has opened Sony's sign-in page.\n\n"
-				L"1. Sign in with the PSN account you use on the console.\n"
-				L"2. Edge then shows a page from remoteplay.dl.playstation.net. It may look empty or show an error: "
-				L"that's expected.\n"
-				L"3. Look at the address bar. Note the characters after \"code=\" (up to any \"&\").\n"
-				L"4. Come back here (Xbox button → PS Xbox) and type them below, or paste the whole address.\n\n"
-				L"The code expires after a few minutes.");
-			TextBox code_box;
-			code_box.Header(box_value(L"Code (or the whole address)"));
-			code_box.IsSpellCheckEnabled(false);
-			code_box.Margin(Thickness{ 0, 16, 0, 0 });
-			StackPanel content;
-			content.Children().Append(steps);
-			content.Children().Append(code_box);
-
-			ContentDialog dialog;
-			dialog.Title(box_value(L"Sign in with PSN"));
-			dialog.Content(content);
-			dialog.PrimaryButtonText(L"Continue");
-			dialog.CloseButtonText(L"Cancel");
-			dialog.DefaultButton(ContentDialogButton::Primary);
-			if(co_await dialog.ShowAsync() != ContentDialogResult::Primary)
-				throw hresult_canceled();
-
-			status(L"Checking the code with Sony...");
-			id = co_await psx::PsnAccountIdFromCodeAsync(code_box.Text());
-		}
-		catch(hresult_canceled const &)
-		{
-			error = L"Sign-in canceled.";
-		}
-		catch(hresult_error const &e)
-		{
-			error = L"PSN sign-in failed: " + e.message();
-		}
-
-		auto self = weak.get();
-		if(!self)
-			co_return;
-		RegisterSignInButton().IsEnabled(true);
-		SettingsSignInButton().IsEnabled(true);
-		if(!error.empty())
-		{
-			status(error);
-			co_return;
-		}
-		psx::Settings::Get().SetPsnAccountId(psx::Narrow(id));
-		AccountIdBox().Text(id);
-		SettingsAccountIdBox().Text(id);
-		status(L"Signed in. Your PSN Account ID is filled in.");
-	}
-
-	// ---------------------------------------------------------------- streaming
 
 	void MainPage::ConnectTo(ConsoleEntry const &entry)
 	{
