@@ -37,6 +37,8 @@ namespace psx
 		static bool VideoCb(uint8_t *buf, size_t buf_size, int32_t frames_lost, bool frame_recovered, void *user);
 		static void AudioSettingsCb(uint32_t channels, uint32_t rate, void *user);
 		static void AudioFrameCb(int16_t *buf, size_t samples_count, void *user);
+		static void HapticsFrameCb(uint8_t *buf, size_t buf_size, void *user);
+		void HapticsLoop();
 		void ToggleMicrophone();
 		void SetMicMuted(bool muted);
 
@@ -50,6 +52,13 @@ namespace psx
 		std::string addr_;
 		bool active_ = false;
 		std::atomic<bool> ended_sent_{ false };
+
+		// PS5 games mostly vibrate through the DualSense's haptics, sent as audio. Its loudness is turned
+		// into controller rumble, like chiaki-ng's rumble emulation (Normal intensity).
+		std::mutex haptics_mutex_;
+		std::deque<uint16_t> haptics_;
+		std::thread haptics_thread_;
+		std::atomic<bool> haptics_stop_{ false };
 
 		// Microphone: chiaki encodes 10 ms frames of 480 stereo samples with Opus.
 		static constexpr size_t kMicFrameSamples = 480;

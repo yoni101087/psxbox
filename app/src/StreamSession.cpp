@@ -31,7 +31,9 @@ namespace psx
 		ci.video_profile.codec = ci.ps5 && chiaki_codec_is_h265(settings.codec) ? settings.codec : CHIAKI_CODEC_H264;
 		ci.video_profile_auto_downgrade = true;
 		ci.enable_keyboard = false;
-		ci.enable_dualsense = false;
+		// As a DualSense, the PS5 sends its haptics (see HapticsFrameCb); as a DualShock 4 most PS5 games
+		// don't vibrate at all.
+		ci.enable_dualsense = ci.ps5;
 		ci.audio_video_disabled = CHIAKI_NONE_DISABLED;
 		ci.auto_regist = false;
 		ci.holepunch_session = nullptr;
@@ -62,6 +64,19 @@ namespace psx
 		chiaki_opus_decoder_get_sink(&opus_, &sink);
 		chiaki_session_set_audio_sink(&session_, &sink);
 		chiaki_session_set_video_sample_cb(&session_, VideoCb, this);
+		if(ci.enable_dualsense)
+		{
+			ChiakiAudioSink haptics = {};
+			haptics.user = this;
+			haptics.frame_cb = HapticsFrameCb;
+			chiaki_session_set_haptics_sink(&session_, &haptics);
+			{
+				std::lock_guard<std::mutex> lock(haptics_mutex_);
+				haptics_.clear();
+			}
+			haptics_stop_ = false;
+			haptics_thread_ = std::thread([this] { HapticsLoop(); });
+		}
 
 		// Microphone (Settings): starts muted on the console; View + Y turns it on.
 		mic_enabled_ = settings.microphone;
@@ -109,6 +124,9 @@ namespace psx
 	{
 		if(!active_)
 			return;
+		haptics_stop_ = true;
+		if(haptics_thread_.joinable())
+			haptics_thread_.join();
 		gamepad_.Stop();
 		chiaki_session_stop(&session_);
 		chiaki_session_join(&session_);
@@ -178,6 +196,60 @@ namespace psx
 	void StreamSession::AudioFrameCb(int16_t *buf, size_t samples_count, void *user)
 	{
 		static_cast<StreamSession *>(user)->audio_.Push(buf, samples_count);
+	}
+
+	void StreamSession::HapticsFrameCb(uint8_t *buf, size_t buf_size, void *user)
+	{
+		// Stereo 16-bit samples; strength is twice the average amplitude (as chiaki-ng computes it).
+		const size_t frames = buf_size / (2 * sizeof(int16_t));
+		if(frames == 0)
+			return;
+		uint32_t sum_l = 0, sum_r = 0;
+		for(size_t i = 0; i < frames; i++)
+		{
+			int16_t l, r;
+			memcpy(&l, buf + i * 4, sizeof(l));
+			memcpy(&r, buf + i * 4 + 2, sizeof(r));
+			sum_l += static_cast<uint32_t>(std::abs(l)) * 2;
+			sum_r += static_cast<uint32_t>(std::abs(r)) * 2;
+		}
+		uint32_t strength = std::max(sum_l, sum_r) / static_cast<uint32_t>(frames);
+		if(strength <= 100) // too faint to feel
+			return;
+		strength = std::clamp<uint32_t>(strength, 1u << 9, UINT16_MAX);
+
+		auto self = static_cast<StreamSession *>(user);
+		std::lock_guard<std::mutex> lock(self->haptics_mutex_);
+		self->haptics_.push_back(static_cast<uint16_t>(strength));
+		while(self->haptics_.size() > 20)
+			self->haptics_.pop_front();
+	}
+
+	void StreamSession::HapticsLoop()
+	{
+		// Haptics packets come every 10 ms; average 3 of them every 30 ms. Silence (no packets) stops it.
+		constexpr size_t kPackets = 3;
+		bool on = false;
+		while(!haptics_stop_)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(10 * kPackets));
+			uint32_t strength = 0;
+			{
+				std::lock_guard<std::mutex> lock(haptics_mutex_);
+				for(size_t i = 0; i < kPackets && !haptics_.empty(); i++)
+				{
+					strength += haptics_.front();
+					haptics_.pop_front();
+				}
+			}
+			strength /= kPackets;
+			if(strength > 0 || on)
+			{
+				uint8_t level = static_cast<uint8_t>(strength >> 8);
+				gamepad_.Rumble(level, level);
+			}
+			on = strength > 0;
+		}
 	}
 
 	void StreamSession::SetMicMuted(bool muted)

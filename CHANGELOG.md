@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.5
+
+- **Controller rumble on PS5 games:** the PS5 now sees a DualSense instead of a DualShock 4. Most PS5 games
+  vibrate only through the DualSense's haptics, so they sent no rumble at all before. The haptics are now
+  turned into controller rumble, as chiaki-ng does. PS4 games keep their normal rumble.
+
 ## 0.4.4
 
 - **Controller rumble:** the controller is no longer also opened as a raw device (added in 0.3.1 to log its
