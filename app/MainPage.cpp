@@ -14,6 +14,7 @@ using namespace Windows::Foundation;
 using namespace Windows::UI::Core;
 using namespace Windows::UI::Xaml;
 using namespace Windows::UI::Xaml::Controls;
+namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
 using namespace Windows::UI::Xaml::Input;
 
 namespace winrt::PsXbox::implementation
@@ -103,54 +104,63 @@ namespace winrt::PsXbox::implementation
 				args.Handled(true);
 		});
 
-		// Sign in with PSN: catch Sony's redirect, which carries the login code.
-		SignInWeb().NavigationStarting([this](WebView const &, WebViewNavigationStartingEventArgs const &args) {
+		// Sign in with PSN, in WebView2 (Chromium: Sony's page doesn't run in the older WebView).
+		// Catch Sony's redirect, which carries the login code.
+		SignInWeb().NavigationStarting([this](muxc::WebView2 const &, Microsoft::Web::WebView2::Core::CoreWebView2NavigationStartingEventArgs const &args) {
 			if(screen_ != Screen::SignIn)
 				return;
-			if(!psx::PsnIsRedirect(args.Uri()))
+			Uri uri{ nullptr };
+			try
+			{
+				uri = Uri(args.Uri());
+			}
+			catch(hresult_error const &)
+			{
+				return;
+			}
+			if(!psx::PsnIsRedirect(uri))
 			{
 				// For diagnosis: where the sign-in goes (without query strings, which can hold tokens).
-				if(auto uri = args.Uri())
-					PSX_LOGI("PSN sign-in page: %s://%s%s", psx::Narrow(uri.SchemeName()).c_str(),
-						psx::Narrow(uri.Host()).c_str(), psx::Narrow(uri.Path()).c_str());
+				PSX_LOGI("PSN sign-in page: %s://%s%s", psx::Narrow(uri.SchemeName()).c_str(),
+					psx::Narrow(uri.Host()).c_str(), psx::Narrow(uri.Path()).c_str());
 				return;
 			}
 			args.Cancel(true);
 			if(!sign_in_done_)
 			{
 				sign_in_done_ = true;
-				FinishSignIn(args.Uri().AbsoluteUri());
+				FinishSignIn(uri.AbsoluteUri());
 			}
 		});
-		// Sony opens some steps (verification, two-step) in a new window, which a WebView drops unless
-		// handled: show them in the same view.
-		SignInWeb().NewWindowRequested([](WebView const &web, WebViewNewWindowRequestedEventArgs const &args) {
-			args.Handled(true);
-			if(auto uri = args.Uri())
+		SignInWeb().CoreWebView2Initialized([this](muxc::WebView2 const &web, muxc::CoreWebView2InitializedEventArgs const &args) {
+			if(auto e = args.Exception(); e != hresult{})
 			{
-				PSX_LOGI("PSN sign-in opens a window: %s%s", psx::Narrow(uri.Host()).c_str(), psx::Narrow(uri.Path()).c_str());
-				web.Navigate(uri);
+				PSX_LOGE("WebView2 failed to start: 0x%08x", static_cast<uint32_t>(e));
+				SignInStatus(L"The sign-in view couldn't start. Select Use Edge instead.");
+				return;
 			}
+			auto core = web.CoreWebView2();
+			// Sony opens some steps (verification, two-step) in a new window: show them in the same view.
+			core.NewWindowRequested([](Microsoft::Web::WebView2::Core::CoreWebView2 const &sender,
+										 Microsoft::Web::WebView2::Core::CoreWebView2NewWindowRequestedEventArgs const &args) {
+				args.Handled(true);
+				sender.Navigate(args.Uri());
+			});
+			// For diagnosis: the page's title and the start of its text.
+			core.DOMContentLoaded([](Microsoft::Web::WebView2::Core::CoreWebView2 sender,
+									  Microsoft::Web::WebView2::Core::CoreWebView2DOMContentLoadedEventArgs const &) -> fire_and_forget {
+				try
+				{
+					hstring text = co_await sender.ExecuteScriptAsync(
+						L"(document.title || '') + ' | ' + (document.body ? document.body.innerText.replace(/\\s+/g, ' ').substring(0, 200) : '')");
+					PSX_LOGI("PSN sign-in page text: %s", psx::Narrow(text).c_str());
+				}
+				catch(hresult_error const &)
+				{
+				}
+			});
 		});
-		SignInWeb().UnviewableContentIdentified([](WebView const &, WebViewUnviewableContentIdentifiedEventArgs const &args) {
-			PSX_LOGE("PSN sign-in page can't be shown: %s", args.Uri() ? psx::Narrow(args.Uri().Host()).c_str() : "");
-		});
-		SignInWeb().DOMContentLoaded([](WebView web, WebViewDOMContentLoadedEventArgs const &) -> fire_and_forget {
-			try
-			{
-				// Xbox: let the left stick drive a cursor in the page.
-				co_await web.InvokeScriptAsync(L"eval", single_threaded_vector<hstring>({ L"try { navigator.gamepadInputEmulation = 'mouse'; } catch(e) {}" }));
-				// For diagnosis: the page's title and the start of its text (e.g. "browser not supported").
-				hstring text = co_await web.InvokeScriptAsync(L"eval", single_threaded_vector<hstring>({
-					L"(document.title || '') + ' | ' + (document.body ? document.body.innerText.replace(/\\s+/g, ' ').substring(0, 200) : '')" }));
-				PSX_LOGI("PSN sign-in page text: %s", psx::Narrow(text).c_str());
-			}
-			catch(hresult_error const &e)
-			{
-				PSX_LOGE("PSN sign-in page script failed: 0x%08x", static_cast<uint32_t>(e.code()));
-			}
-		});
-		SignInWeb().NavigationCompleted([this](WebView const &, WebViewNavigationCompletedEventArgs const &args) {
+		SignInWeb().NavigationCompleted([this](muxc::WebView2 const &, Microsoft::Web::WebView2::Core::CoreWebView2NavigationCompletedEventArgs const &args) {
 			if(screen_ != Screen::SignIn || sign_in_done_)
 				return;
 			if(args.IsSuccess())
@@ -158,8 +168,7 @@ namespace winrt::PsXbox::implementation
 				SignInStatusText().Text(L"");
 				return;
 			}
-			PSX_LOGE("PSN sign-in page failed to load (%d): %s", static_cast<int>(args.WebErrorStatus()),
-				args.Uri() ? psx::Narrow(args.Uri().AbsoluteUri()).c_str() : "");
+			PSX_LOGE("PSN sign-in page failed to load (%d)", static_cast<int>(args.WebErrorStatus()));
 			SignInStatus(L"Sony's page didn't load. Check the network, or select Use Edge instead.");
 		});
 
@@ -571,7 +580,7 @@ namespace winrt::PsXbox::implementation
 		SignInStatus(L"");
 		SignInStatusText().Text(L"Loading Sony's sign-in page...");
 		Show(Screen::SignIn);
-		SignInWeb().Navigate(psx::PsnLoginUri());
+		SignInWeb().Source(psx::PsnLoginUri());
 	}
 
 	void MainPage::OnSignInCancelClick(IInspectable const &, RoutedEventArgs const &)
@@ -588,7 +597,7 @@ namespace winrt::PsXbox::implementation
 
 	void MainPage::LeaveSignIn()
 	{
-		SignInWeb().NavigateToString(L"");
+		SignInWeb().Source(Uri(L"about:blank"));
 		if(screen_ == Screen::SignIn)
 			Show(sign_in_from_);
 	}

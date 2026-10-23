@@ -2,5 +2,10 @@
     x:Class="PsXbox.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     RequestedTheme="Dark">
+    <!-- WinUI 2, for WebView2 (the Chromium web view used by Sign in with PSN) -->
+    <Application.Resources>
+        <muxc:XamlControlsResources/>
+    </Application.Resources>
 </Application>
