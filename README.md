@@ -23,12 +23,14 @@ You need an Xbox in **Dev Mode**. That requires a Microsoft Partner Center devel
    with the code it shows in Partner Center, then switch to Dev Mode.
 2. **Turn on Device Portal.** In **Dev Home** on the Xbox, note the IP address, open **Remote Access settings**
    and enable **Device Portal**.
-3. **Download** these two files from the latest [release](../../releases/latest):
+3. **Download** the files from the latest [release](../../releases/latest):
    - `PsXbox_<version>_x64.msix`: the app
-   - `Microsoft.VCLibs.x64.14.00.appx`: the C++ runtime it needs
+   - `Microsoft.VCLibs.x64.14.00.appx` and `Microsoft.VCLibs.x64.14.00.Desktop.appx`: the C++ runtime
+   - `Microsoft.UI.Xaml.2.8.appx`: WinUI 2, for the sign-in page
 4. **Install.** On a PC on the same network, open `https://<xbox-ip>:11443` (accept the certificate
    warning; the Xbox uses a self-signed one). Go to **Home → My games & apps → Add**, select the `.msix`,
-   select **Next**, add the VCLibs `.appx` as a dependency, then select **Start**.
+   select **Next**, add the three `.appx` files as dependencies, then select **Start**. Dependencies the Xbox
+   already has are skipped.
 5. **Set the app type to Game.** In Dev Home, highlight **PS Xbox** → **View details** → change **App type**
    from *App* to **Game**. Apps only get a fraction of the GPU and memory; games get the full console.
 
@@ -56,8 +58,12 @@ your registered consoles and PSN Account ID, while uninstalling deletes them.
 
 The Account ID is not your PSN username (online ID). It's a number PSN assigns to your account, which only
 Sony's servers can look up, and only after you sign in. **Sign in with PSN** does that for you: it shows
-Sony's sign-in page in the app (the left stick moves a cursor, a USB keyboard types). Once you're signed in, the
-app picks up the result by itself and fills in the ID.
+Sony's sign-in page in the app, in the same Chromium engine as Edge. Use a USB keyboard there (Tab moves between
+fields, Enter confirms). Once you're signed in, the app picks up the result by itself and fills in the ID.
+
+If your Xbox is an **Xbox One** or **Series S** and the app type is set to **Game**, set it to **App** for the
+sign-in (Dev Home → View details → App type): the Chromium view has been reported to crash those consoles in
+games. You only sign in once.
 
 If Sony's page doesn't work in the app, select **Use Edge instead**: sign in in Edge, which lands on a page
 from `remoteplay.dl.playstation.net` (it may look empty). Its address contains the login code after `code=`;
@@ -221,8 +227,8 @@ msbuild app\PsXbox.vcxproj -p:Configuration=Release -p:Platform=x64 `
   -p:UapAppxPackageBuildMode=SideloadOnly -p:PackageCertificatePassword=psxbox -p:AppxBundle=Never
 ```
 
-The package lands in `app\AppPackages\PsXbox\PsXbox_<version>_x64_Test\`, together with
-`Dependencies\x64\Microsoft.VCLibs.x64.14.00.appx`. Install both as described in
+The package lands in `app\AppPackages\PsXbox\PsXbox_<version>_x64_Test\`, together with its dependencies in
+`Dependencies\x64\` (VCLibs, VCLibs Desktop, Microsoft.UI.Xaml 2.8). Install them as described in
 [Install a release](#install-a-release-on-your-xbox). Bump `Version` in `app/Package.appxmanifest` for each
 release so the Xbox installs it as an update.
 

@@ -9,10 +9,12 @@
 - **Microphone:** a new **Microphone** setting sends a headset plugged into the controller to the console
   (for voice chat in games and parties). It starts muted; **View + Y** turns it on and off, with a short
   message on screen. The Xbox asks once for permission to use the microphone.
-- **Sign in with PSN fixed:** the system sign-in window no longer works with Sony's page. Sony's page is now
-  shown inside the app, which picks up the result by itself once you're signed in (the left stick moves a
-  cursor). If the page doesn't work there, **Use Edge instead** signs in in Edge, and you bring the login code
-  from its address bar back to the app.
+- **Sign in with PSN fixed:** Sony's sign-in page no longer runs in the system's older web view (it stays on
+  its loading spinner). It is now shown inside the app with WebView2, the Chromium engine Edge uses, and the
+  app picks up the result by itself once you're signed in. Type with a USB keyboard. **Use Edge instead**
+  remains as a fallback (sign in in Edge, then bring the login code back).
+- **New dependencies:** WinUI 2 (`Microsoft.UI.Xaml.2.8.appx`) and `Microsoft.VCLibs.x64.14.00.Desktop.appx`,
+  needed by WebView2. Install them with the app.
 
 ## 0.3.1
 
