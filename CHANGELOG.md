@@ -9,6 +9,8 @@
 - **Microphone:** a new **Microphone** setting sends a headset plugged into the controller to the console
   (for voice chat in games and parties). It starts muted; **View + Y** turns it on and off, with a short
   message on screen. The Xbox asks once for permission to use the microphone.
+- **Sign in with PSN fixed:** the built-in sign-in window no longer works with Sony's page. Sign-in now opens
+  in Edge; you bring the login code from Edge's address bar back to the app.
 
 ## 0.3.1
 

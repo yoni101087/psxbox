@@ -7,7 +7,6 @@
 using namespace winrt;
 using namespace Windows::Foundation;
 using namespace Windows::Data::Json;
-using namespace Windows::Security::Authentication::Web;
 using namespace Windows::Security::Cryptography;
 using namespace Windows::Web::Http;
 using namespace Windows::Web::Http::Headers;
@@ -51,37 +50,49 @@ namespace psx
 			PSX_LOGE("PSN sign-in: %s", msg.c_str());
 			throw hresult_error(E_FAIL, Widen(msg));
 		}
+
+		// The code itself, from the code or the whole redirect address (...redirect?code=XXXX&...).
+		std::string ExtractCode(std::string input)
+		{
+			while(!input.empty() && isspace(static_cast<unsigned char>(input.back())))
+				input.pop_back();
+			size_t start = 0;
+			while(start < input.size() && isspace(static_cast<unsigned char>(input[start])))
+				start++;
+			input = input.substr(start);
+
+			size_t pos = input.find("code=");
+			if(pos == std::string::npos)
+				return input;
+			std::string code = input.substr(pos + 5);
+			size_t end = code.find_first_of("&#");
+			if(end != std::string::npos)
+				code.resize(end);
+			return Narrow(Uri::UnescapeComponent(Widen(code)));
+		}
 	}
 
-	IAsyncOperation<hstring> PsnSignInAsync()
+	Uri PsnLoginUri()
 	{
-		auto result = co_await WebAuthenticationBroker::AuthenticateAsync(
-			WebAuthenticationOptions::None, Uri(LoginUrl()), Uri(kRedirectUri));
-		if(result.ResponseStatus() == WebAuthenticationStatus::UserCancel)
-			throw hresult_canceled();
-		if(result.ResponseStatus() != WebAuthenticationStatus::Success)
-			Fail(Format("the sign-in window failed (HTTP %u)", result.ResponseErrorDetail()));
+		return Uri(LoginUrl());
+	}
 
-		hstring code;
-		try
-		{
-			code = Uri(result.ResponseData()).QueryParsed().GetFirstValueByName(L"code");
-		}
-		catch(hresult_error const &)
-		{
-		}
+	IAsyncOperation<hstring> PsnAccountIdFromCodeAsync(hstring input)
+	{
+		std::string code = ExtractCode(Narrow(input));
 		if(code.empty())
-			Fail("Sony did not return a login code");
+			Fail("enter the code from Edge's address bar");
 
 		HttpClient client;
 		client.DefaultRequestHeaders().Authorization(BasicAuth());
 
-		HttpStringContent body(hstring(L"grant_type=authorization_code&code=") + code + L"&redirect_uri=" + kRedirectUri + L"&",
+		HttpStringContent body(hstring(L"grant_type=authorization_code&code=") + Uri::EscapeComponent(Widen(code)) + L"&redirect_uri=" + kRedirectUri + L"&",
 			Windows::Storage::Streams::UnicodeEncoding::Utf8, L"application/x-www-form-urlencoded");
 		auto token_response = co_await client.PostAsync(Uri(kTokenUrl), body);
 		auto token_text = co_await token_response.Content().ReadAsStringAsync();
 		if(!token_response.IsSuccessStatusCode())
-			Fail(Format("token request failed (HTTP %d)", static_cast<int>(token_response.StatusCode())));
+			Fail(Format("Sony didn't accept the code (HTTP %d). Codes expire after a few minutes: sign in again.",
+				static_cast<int>(token_response.StatusCode())));
 		JsonObject token_json;
 		if(!JsonObject::TryParse(token_text, token_json) || !token_json.HasKey(L"access_token"))
 			Fail("token response had no access token");

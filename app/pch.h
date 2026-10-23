@@ -46,7 +46,6 @@
 #include <winrt/Windows.Media.Render.h>
 #include <winrt/Windows.Networking.h>
 #include <winrt/Windows.Networking.Connectivity.h>
-#include <winrt/Windows.Security.Authentication.Web.h>
 #include <winrt/Windows.Security.Cryptography.h>
 #include <winrt/Windows.Storage.h>
 #include <winrt/Windows.Storage.Streams.h>

@@ -504,13 +504,44 @@ namespace winrt::PsXbox::implementation
 		};
 		RegisterSignInButton().IsEnabled(false);
 		SettingsSignInButton().IsEnabled(false);
-		status(L"Signing in to PSN...");
+		status(L"Opening Edge...");
 
 		hstring id;
 		hstring error;
 		try
 		{
-			id = co_await psx::PsnSignInAsync();
+			// Sign in in Edge; the user brings the login code back (see PsnAuth.h).
+			if(!co_await Windows::System::Launcher::LaunchUriAsync(psx::PsnLoginUri()))
+				throw hresult_error(E_FAIL, L"Edge could not be opened");
+
+			TextBlock steps;
+			steps.TextWrapping(TextWrapping::Wrap);
+			steps.Text(L"Edge has opened Sony's sign-in page.\n\n"
+				L"1. Sign in with the PSN account you use on the console.\n"
+				L"2. Edge then shows a page from remoteplay.dl.playstation.net. It may look empty or show an error: "
+				L"that's expected.\n"
+				L"3. Look at the address bar. Note the characters after \"code=\" (up to any \"&\").\n"
+				L"4. Come back here (Xbox button → PS Xbox) and type them below, or paste the whole address.\n\n"
+				L"The code expires after a few minutes.");
+			TextBox code_box;
+			code_box.Header(box_value(L"Code (or the whole address)"));
+			code_box.IsSpellCheckEnabled(false);
+			code_box.Margin(Thickness{ 0, 16, 0, 0 });
+			StackPanel content;
+			content.Children().Append(steps);
+			content.Children().Append(code_box);
+
+			ContentDialog dialog;
+			dialog.Title(box_value(L"Sign in with PSN"));
+			dialog.Content(content);
+			dialog.PrimaryButtonText(L"Continue");
+			dialog.CloseButtonText(L"Cancel");
+			dialog.DefaultButton(ContentDialogButton::Primary);
+			if(co_await dialog.ShowAsync() != ContentDialogResult::Primary)
+				throw hresult_canceled();
+
+			status(L"Checking the code with Sony...");
+			id = co_await psx::PsnAccountIdFromCodeAsync(code_box.Text());
 		}
 		catch(hresult_canceled const &)
 		{

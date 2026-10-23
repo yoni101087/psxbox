@@ -43,7 +43,8 @@ your registered consoles and PSN Account ID, while uninstalling deletes them.
      want wake from rest mode.
 2. **Open PS Xbox.** Your console should show up in the list. If not, use **Add by IP**.
 3. **Select the console**, then select **Sign in with PSN** and sign in with the PSN account you use on the
-   console. This fills in your **PSN Account ID**, which registration needs. It's stored on the Xbox, so you
+   console (in Edge; see [About the PSN Account ID](#about-the-psn-account-id)). This fills in your
+   **PSN Account ID**, which registration needs. It's stored on the Xbox, so you
    only do this once.
 4. **On the PlayStation**, open **Link Device** (PS5: Settings → System → Remote Play) or **Add Device**
    (PS4: Settings → Remote Play Connection Settings). Enter the 8-digit PIN it shows in the app and select
@@ -54,8 +55,15 @@ your registered consoles and PSN Account ID, while uninstalling deletes them.
 ### About the PSN Account ID
 
 The Account ID is not your PSN username (online ID). It's a number PSN assigns to your account, which only
-Sony's servers can look up, and only after you sign in. **Sign in with PSN** does that for you. If it
-doesn't work, you can type the ID in yourself, in either form:
+Sony's servers can look up, and only after you sign in. **Sign in with PSN** does that for you:
+
+1. It opens Sony's sign-in page in Edge. Sign in there.
+2. Edge then lands on a page from `remoteplay.dl.playstation.net` that may look empty or show an error. That's
+   expected: the login code is in the address bar, after `code=` (up to any `&`).
+3. Go back to PS Xbox (Xbox button → PS Xbox) and type the code, or paste the whole address, into the box it
+   shows. The code expires after a few minutes.
+
+If that doesn't work, you can type the ID in yourself, in either form:
 
 - **Base64**, 12 characters like `AbCdEfGhIjk=`. To get it on a PC, run
   `python third_party\chiaki-ng\scripts\psn-account-id.py` (needs `pip install requests`), open the link it
