@@ -66,6 +66,13 @@ doesn't work, you can type the ID in yourself, in either form:
 
 The app has a **Controls** screen (on the home screen) with a picture of the controller.
 
+**HDR:** in **Settings → Video codec**, choose **H.265 HDR (PS5 only, HDR TV)**. HDR needs:
+- On the Xbox: **Settings → General → TV & display options → Video modes → Allow HDR10** turned on (an HDR TV).
+- On the PS5: **Settings → Screen and Video → Video Output → HDR** on, and a game that uses HDR.
+
+The app switches the TV to HDR while HDR frames are shown and back when the stream ends. If the TV can't show
+HDR, it streams plain H.265 instead.
+
 **PS5 controller through an adapter** (such as the Brook Wingman XB3): choose it under **Settings →
 Controller**. The adapter makes it an Xbox controller, so Create is View, Options is Menu and L1 / R1 are
 LB / RB in the table below, with one difference: Create alone sends **Create**, and Create + L1 sends the

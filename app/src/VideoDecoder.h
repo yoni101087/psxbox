@@ -1,10 +1,11 @@
 #pragma once
 
+#include "VideoRenderer.h"
+
 namespace psx
 {
-	class VideoRenderer;
-
-	// Hardware H.264 / HEVC decoding through a Media Foundation transform.
+	// Hardware H.264 / HEVC decoding through a Media Foundation transform. HDR streams are decoded to
+	// 10-bit P010, the rest to NV12.
 	// When the decoder accepts our D3D11 device it outputs GPU textures (zero copy); otherwise
 	// frames come back in system memory and are uploaded by the renderer.
 	class VideoDecoder
@@ -27,6 +28,8 @@ namespace psx
 		winrt::com_ptr<IMFTransform> mft_;
 		VideoRenderer *renderer_ = nullptr;
 		bool gpu_ = false;
+		bool hdr_codec_ = false;
+		VideoFormat format_;
 		bool provides_samples_ = false;
 		DWORD output_buffer_size_ = 0;
 		UINT frame_w_ = 0;

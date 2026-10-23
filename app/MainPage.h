@@ -3,6 +3,7 @@
 #include "MainPage.g.h"
 
 #include "src/Discovery.h"
+#include "src/HdrDisplay.h"
 #include "src/Registration.h"
 #include "src/StreamSession.h"
 #include "src/VideoRenderer.h"
@@ -68,6 +69,7 @@ namespace winrt::PsXbox::implementation
 		ConsoleEntry register_entry_;
 
 		psx::VideoRenderer renderer_;
+		psx::HdrDisplay hdr_display_;
 		bool panel_attached_ = false;
 		psx::StreamSession session_;
 		std::string pending_wake_mac_;

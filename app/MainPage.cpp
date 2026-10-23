@@ -107,6 +107,18 @@ namespace winrt::PsXbox::implementation
 			StartDiscovery();
 		});
 
+		// The TV follows the stream: HDR10 mode while HDR frames are shown.
+		renderer_.SetOnHdrChanged([this, alive = std::weak_ptr<bool>(alive_)](bool hdr) {
+			if(alive.expired())
+				return;
+			RunOnUi([this, hdr] {
+				if(hdr && screen_ == Screen::Stream)
+					hdr_display_.Enable();
+				else
+					hdr_display_.Disable();
+			});
+		});
+
 		if(!renderer_.InitDevice())
 			SetStatus("Graphics initialisation failed, streaming will not work. See the log below.");
 
@@ -360,7 +372,7 @@ namespace winrt::PsXbox::implementation
 		auto s = psx::Settings::Get().Stream();
 		SelectByTag(ResolutionBox(), s.resolution);
 		SelectByTag(FpsBox(), s.fps);
-		SelectByTag(CodecBox(), s.codec == CHIAKI_CODEC_H264 ? 0 : 1);
+		SelectByTag(CodecBox(), static_cast<int>(s.codec));
 		BitrateBox().Text(s.bitrate_kbps ? to_hstring(s.bitrate_kbps) : hstring());
 		SelectByTag(ControllerBox(), s.ps5_layout ? 1 : 0);
 		SettingsAccountIdBox().Text(psx::Widen(psx::Settings::Get().PsnAccountId()));
@@ -392,7 +404,7 @@ namespace winrt::PsXbox::implementation
 		psx::StreamSettings s;
 		s.resolution = static_cast<ChiakiVideoResolutionPreset>(SelectedTag(ResolutionBox(), CHIAKI_VIDEO_RESOLUTION_PRESET_1080p));
 		s.fps = static_cast<ChiakiVideoFPSPreset>(SelectedTag(FpsBox(), CHIAKI_VIDEO_FPS_PRESET_60));
-		s.codec = SelectedTag(CodecBox(), 0) == 1 ? CHIAKI_CODEC_H265 : CHIAKI_CODEC_H264;
+		s.codec = static_cast<ChiakiCodec>(SelectedTag(CodecBox(), CHIAKI_CODEC_H264));
 		std::string bitrate = Trim(psx::Narrow(BitrateBox().Text()));
 		s.bitrate_kbps = bitrate.empty() ? 0 : static_cast<unsigned int>(strtoul(bitrate.c_str(), nullptr, 10));
 		s.ps5_layout = SelectedTag(ControllerBox(), 0) == 1;
@@ -605,7 +617,13 @@ namespace winrt::PsXbox::implementation
 			RunOnUi([this, reason] { EndStream(reason); });
 		};
 
-		if(!session_.Start(host, addr, psx::Settings::Get().Stream(), &renderer_, std::move(cb)))
+		psx::StreamSettings settings = psx::Settings::Get().Stream();
+		if(chiaki_codec_is_hdr(settings.codec) && !psx::HdrDisplay::Supported())
+		{
+			PSX_LOGI("This display can't show HDR, streaming H.265 without HDR");
+			settings.codec = CHIAKI_CODEC_H265;
+		}
+		if(!session_.Start(host, addr, settings, &renderer_, std::move(cb)))
 		{
 			EndStream("Could not start the session. See the log for details.");
 			return;
@@ -620,6 +638,7 @@ namespace winrt::PsXbox::implementation
 	void MainPage::EndStream(std::string const &reason)
 	{
 		session_.Stop();
+		hdr_display_.Disable();
 		if(display_active_)
 		{
 			display_request_.RequestRelease();

@@ -109,6 +109,7 @@
     <ClInclude Include="src\AudioPlayer.h" />
     <ClInclude Include="src\Discovery.h" />
     <ClInclude Include="src\GamepadInput.h" />
+    <ClInclude Include="src\HdrDisplay.h" />
     <ClInclude Include="src\Logger.h" />
     <ClInclude Include="src\PsnAuth.h" />
     <ClInclude Include="src\Registration.h" />
@@ -150,6 +151,7 @@
     <ClCompile Include="src\AudioPlayer.cpp" />
     <ClCompile Include="src\Discovery.cpp" />
     <ClCompile Include="src\GamepadInput.cpp" />
+    <ClCompile Include="src\HdrDisplay.cpp" />
     <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\PsnAuth.cpp" />
     <ClCompile Include="src\Registration.cpp" />

@@ -147,9 +147,10 @@ namespace psx
 		Clear();
 	}
 
-	void VideoRenderer::SubmitGpuFrame(IMFSample *sample, ID3D11Texture2D *texture, UINT slice, UINT width, UINT height, RECT const &src)
+	void VideoRenderer::SubmitGpuFrame(IMFSample *sample, ID3D11Texture2D *texture, UINT slice, UINT width, UINT height, RECT const &src, VideoFormat fmt)
 	{
 		Frame f;
+		f.fmt = fmt;
 		f.sample.copy_from(sample);
 		f.texture.copy_from(texture);
 		f.slice = slice;
@@ -163,10 +164,11 @@ namespace psx
 		frame_cv_.notify_one();
 	}
 
-	void VideoRenderer::SubmitCpuFrame(std::vector<uint8_t> &&nv12, UINT width, UINT height, RECT const &src)
+	void VideoRenderer::SubmitCpuFrame(std::vector<uint8_t> &&data, UINT width, UINT height, RECT const &src, VideoFormat fmt)
 	{
 		Frame f;
-		f.cpu_data = std::move(nv12);
+		f.fmt = fmt;
+		f.cpu_data = std::move(data);
 		f.width = width;
 		f.height = height;
 		f.src = src;
@@ -217,9 +219,53 @@ namespace psx
 		return true;
 	}
 
-	bool VideoRenderer::EnsureVideoProcessor(UINT in_w, UINT in_h, UINT out_w, UINT out_h)
+	bool VideoRenderer::SetHdrOutput(bool hdr)
 	{
-		if(vp_ && in_w == vp_in_w_ && in_h == vp_in_h_ && out_w == vp_out_w_ && out_h == vp_out_h_)
+		// Called with swap_mutex_ held. ResizeBuffers needs every reference to the buffers released.
+		output_view_ = nullptr;
+		vp_ = nullptr;
+		vp_enum_ = nullptr;
+		input_views_.clear();
+		const DXGI_FORMAT format = hdr ? DXGI_FORMAT_R10G10B10A2_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
+		const DXGI_COLOR_SPACE_TYPE space = hdr ? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+		HRESULT hr = swap_chain_->ResizeBuffers(0, out_w_, out_h_, format, 0);
+		if(FAILED(hr))
+		{
+			PSX_LOGE("Switching the output to %s failed: 0x%08x", hdr ? "HDR" : "SDR", hr);
+			return false;
+		}
+		if(auto sc3 = swap_chain_.try_as<IDXGISwapChain3>())
+		{
+			UINT support = 0;
+			if(SUCCEEDED(sc3->CheckColorSpaceSupport(space, &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+				sc3->SetColorSpace1(space);
+			else if(hdr)
+				PSX_LOGE("The display doesn't accept HDR10 output");
+		}
+		if(auto sc4 = swap_chain_.try_as<IDXGISwapChain4>(); sc4 && hdr)
+		{
+			// Generic HDR10 mastering data (BT.2020, D65, 1000 nits): the stream doesn't carry its own.
+			DXGI_HDR_METADATA_HDR10 md = {};
+			md.RedPrimary[0] = 35400; md.RedPrimary[1] = 14600;
+			md.GreenPrimary[0] = 8500; md.GreenPrimary[1] = 39850;
+			md.BluePrimary[0] = 6550; md.BluePrimary[1] = 2300;
+			md.WhitePoint[0] = 15635; md.WhitePoint[1] = 16450;
+			md.MaxMasteringLuminance = 1000;
+			md.MinMasteringLuminance = 50; // 0.005 nits, in 0.0001 nit units
+			md.MaxContentLightLevel = 1000;
+			md.MaxFrameAverageLightLevel = 400;
+			sc4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(md), &md);
+		}
+		hdr_output_ = hdr;
+		PSX_LOGI("Video output: %s", hdr ? "HDR10" : "SDR");
+		if(on_hdr_changed_)
+			on_hdr_changed_(hdr);
+		return true;
+	}
+
+	bool VideoRenderer::EnsureVideoProcessor(UINT in_w, UINT in_h, UINT out_w, UINT out_h, VideoFormat fmt)
+	{
+		if(vp_ && in_w == vp_in_w_ && in_h == vp_in_h_ && out_w == vp_out_w_ && out_h == vp_out_h_ && fmt == vp_fmt_)
 			return true;
 
 		vp_ = nullptr;
@@ -238,6 +284,19 @@ namespace psx
 		desc.Usage = D3D11_VIDEO_USAGE_OPTIMAL_SPEED;
 		HRESULT hr = video_device_->CreateVideoProcessorEnumerator(&desc, vp_enum_.put());
 		if(SUCCEEDED(hr))
+		{
+			UINT in_support = 0, out_support = 0;
+			const DXGI_FORMAT out_format = hdr_output_ ? DXGI_FORMAT_R10G10B10A2_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
+			vp_enum_->CheckVideoProcessorFormat(fmt.format, &in_support);
+			vp_enum_->CheckVideoProcessorFormat(out_format, &out_support);
+			if(!(in_support & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_INPUT) || !(out_support & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_OUTPUT))
+			{
+				PSX_LOGE("The GPU's video processor can't convert %s to %s", fmt.format == DXGI_FORMAT_P010 ? "P010" : "NV12",
+					hdr_output_ ? "HDR10" : "SDR");
+				hr = E_NOTIMPL;
+			}
+		}
+		if(SUCCEEDED(hr))
 			hr = video_device_->CreateVideoProcessor(vp_enum_.get(), 0, vp_.put());
 		if(FAILED(hr))
 		{
@@ -247,14 +306,24 @@ namespace psx
 			return false;
 		}
 
-		// Remote Play streams are BT.709 limited range.
-		D3D11_VIDEO_PROCESSOR_COLOR_SPACE in_cs = {};
-		in_cs.YCbCr_Matrix = 1;
-		in_cs.Nominal_Range = D3D11_VIDEO_PROCESSOR_NOMINAL_RANGE_16_235;
-		video_context_->VideoProcessorSetStreamColorSpace(vp_.get(), 0, &in_cs);
-		D3D11_VIDEO_PROCESSOR_COLOR_SPACE out_cs = {};
-		out_cs.RGB_Range = 0;
-		video_context_->VideoProcessorSetOutputColorSpace(vp_.get(), &out_cs);
+		// Remote Play streams are limited range: BT.709 (SDR) or BT.2020 with PQ (HDR).
+		if(auto vc1 = video_context_.try_as<ID3D11VideoContext1>())
+		{
+			vc1->VideoProcessorSetStreamColorSpace1(vp_.get(), 0,
+				fmt.hdr ? DXGI_COLOR_SPACE_YCBCR_STUDIO_G2084_LEFT_P2020 : DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709);
+			vc1->VideoProcessorSetOutputColorSpace1(vp_.get(),
+				hdr_output_ ? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
+		}
+		else
+		{
+			D3D11_VIDEO_PROCESSOR_COLOR_SPACE in_cs = {};
+			in_cs.YCbCr_Matrix = 1;
+			in_cs.Nominal_Range = D3D11_VIDEO_PROCESSOR_NOMINAL_RANGE_16_235;
+			video_context_->VideoProcessorSetStreamColorSpace(vp_.get(), 0, &in_cs);
+			D3D11_VIDEO_PROCESSOR_COLOR_SPACE out_cs = {};
+			out_cs.RGB_Range = 0;
+			video_context_->VideoProcessorSetOutputColorSpace(vp_.get(), &out_cs);
+		}
 		video_context_->VideoProcessorSetStreamFrameFormat(vp_.get(), 0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
 		video_context_->VideoProcessorSetStreamAutoProcessingMode(vp_.get(), 0, FALSE);
 		D3D11_VIDEO_COLOR black = {};
@@ -265,6 +334,7 @@ namespace psx
 		vp_in_h_ = in_h;
 		vp_out_w_ = out_w;
 		vp_out_h_ = out_h;
+		vp_fmt_ = fmt;
 		return true;
 	}
 
@@ -301,13 +371,15 @@ namespace psx
 		std::lock_guard<std::mutex> lock(swap_mutex_);
 		if(!swap_chain_)
 			return;
+		if(frame.fmt.hdr != hdr_output_ && !SetHdrOutput(frame.fmt.hdr))
+			return;
 
 		ID3D11Texture2D *texture = frame.texture.get();
 		UINT slice = frame.slice;
 
 		if(!frame.cpu_data.empty())
 		{
-			if(!upload_texture_ || upload_w_ != frame.width || upload_h_ != frame.height)
+			if(!upload_texture_ || upload_w_ != frame.width || upload_h_ != frame.height || upload_format_ != frame.fmt.format)
 			{
 				input_views_.clear();
 				upload_texture_ = nullptr;
@@ -316,26 +388,28 @@ namespace psx
 				td.Height = frame.height;
 				td.MipLevels = 1;
 				td.ArraySize = 1;
-				td.Format = DXGI_FORMAT_NV12;
+				td.Format = frame.fmt.format;
 				td.SampleDesc.Count = 1;
 				td.Usage = D3D11_USAGE_DEFAULT;
 				td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 				if(FAILED(device_->CreateTexture2D(&td, nullptr, upload_texture_.put())))
 				{
-					PSX_LOGE("Failed to create NV12 upload texture");
+					PSX_LOGE("Failed to create the upload texture");
 					return;
 				}
 				upload_w_ = frame.width;
 				upload_h_ = frame.height;
+				upload_format_ = frame.fmt.format;
 			}
-			context_->UpdateSubresource(upload_texture_.get(), 0, nullptr, frame.cpu_data.data(), frame.width, 0);
+			const UINT bytes = frame.fmt.format == DXGI_FORMAT_P010 ? 2 : 1;
+			context_->UpdateSubresource(upload_texture_.get(), 0, nullptr, frame.cpu_data.data(), frame.width * bytes, 0);
 			texture = upload_texture_.get();
 			slice = 0;
 		}
 
 		if(!texture)
 			return;
-		if(!EnsureVideoProcessor(frame.width, frame.height, out_w_, out_h_))
+		if(!EnsureVideoProcessor(frame.width, frame.height, out_w_, out_h_, frame.fmt))
 			return;
 		if(!EnsureSwapChain())
 			return;

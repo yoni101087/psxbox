@@ -27,8 +27,8 @@ namespace psx
 		chiaki_connect_video_profile_preset(&ci.video_profile, settings.resolution, settings.fps);
 		if(settings.bitrate_kbps)
 			ci.video_profile.bitrate = settings.bitrate_kbps;
-		// HDR (P010) output isn't supported by the renderer yet.
-		ci.video_profile.codec = ci.ps5 && settings.codec == CHIAKI_CODEC_H265 ? CHIAKI_CODEC_H265 : CHIAKI_CODEC_H264;
+		// H.265 (and its HDR variant) is PS5 only.
+		ci.video_profile.codec = ci.ps5 && chiaki_codec_is_h265(settings.codec) ? settings.codec : CHIAKI_CODEC_H264;
 		ci.video_profile_auto_downgrade = true;
 		ci.enable_keyboard = false;
 		ci.enable_dualsense = false;

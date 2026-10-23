@@ -116,6 +116,7 @@
                 <ComboBox x:Name="CodecBox" Header="Video codec" Margin="0,8" MinWidth="300">
                     <ComboBoxItem Content="H.264" Tag="0"/>
                     <ComboBoxItem Content="H.265 / HEVC (PS5 only)" Tag="1"/>
+                    <ComboBoxItem Content="H.265 HDR (PS5 only, HDR TV)" Tag="2"/>
                 </ComboBox>
                 <TextBox x:Name="BitrateBox" Header="Bitrate in kbps (empty = default)" InputScope="Number" Margin="0,8"/>
                 <ComboBox x:Name="ControllerBox" Header="Controller" Margin="0,8" MinWidth="300">

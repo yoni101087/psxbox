@@ -2,9 +2,20 @@
 
 namespace psx
 {
-	// Owns the D3D11 device (shared with the Media Foundation decoder) and presents decoded NV12
+	// A decoded frame's format: 8-bit NV12, or 10-bit P010; hdr means PQ (SMPTE 2084) with BT.2020 colours.
+	struct VideoFormat
+	{
+		DXGI_FORMAT format = DXGI_FORMAT_NV12;
+		bool hdr = false;
+
+		bool operator==(VideoFormat const &o) const { return format == o.format && hdr == o.hdr; }
+		bool operator!=(VideoFormat const &o) const { return !(*this == o); }
+	};
+
+	// Owns the D3D11 device (shared with the Media Foundation decoder) and presents decoded NV12 or P010
 	// frames into a XAML SwapChainPanel. Colour conversion and scaling are done by the hardware
-	// video processor, so no shaders are needed.
+	// video processor, so no shaders are needed. HDR frames switch the swap chain to HDR10 (10-bit,
+	// PQ, BT.2020) and SDR frames back.
 	//
 	// Frames are handed over through a single-slot mailbox and presented on a dedicated render
 	// thread, so the network/decoder thread never blocks on vsync. If the renderer falls behind,
@@ -27,9 +38,12 @@ namespace psx
 		void StopThread();
 
 		// Called from the decoder thread. The sample keeps the decoder surface alive until shown.
-		void SubmitGpuFrame(IMFSample *sample, ID3D11Texture2D *texture, UINT slice, UINT width, UINT height, RECT const &src);
-		// Tightly packed NV12 (stride == width).
-		void SubmitCpuFrame(std::vector<uint8_t> &&nv12, UINT width, UINT height, RECT const &src);
+		void SubmitGpuFrame(IMFSample *sample, ID3D11Texture2D *texture, UINT slice, UINT width, UINT height, RECT const &src, VideoFormat fmt);
+		// Tightly packed NV12 or P010 (no padding between rows).
+		void SubmitCpuFrame(std::vector<uint8_t> &&data, UINT width, UINT height, RECT const &src, VideoFormat fmt);
+
+		// Called on the render thread when the output switches between SDR and HDR.
+		void SetOnHdrChanged(std::function<void(bool hdr)> cb) { on_hdr_changed_ = std::move(cb); }
 
 	private:
 		struct Frame
@@ -41,12 +55,14 @@ namespace psx
 			UINT width = 0;
 			UINT height = 0;
 			RECT src{};
+			VideoFormat fmt;
 		};
 
 		void RenderLoop();
 		void Draw(Frame &frame);
 		bool EnsureSwapChain();
-		bool EnsureVideoProcessor(UINT in_w, UINT in_h, UINT out_w, UINT out_h);
+		bool SetHdrOutput(bool hdr);
+		bool EnsureVideoProcessor(UINT in_w, UINT in_h, UINT out_w, UINT out_h, VideoFormat fmt);
 		ID3D11VideoProcessorInputView *InputView(ID3D11Texture2D *texture, UINT slice);
 		void Clear();
 
@@ -70,9 +86,13 @@ namespace psx
 		winrt::com_ptr<ID3D11VideoProcessorEnumerator> vp_enum_;
 		winrt::com_ptr<ID3D11VideoProcessor> vp_;
 		UINT vp_in_w_ = 0, vp_in_h_ = 0, vp_out_w_ = 0, vp_out_h_ = 0;
+		VideoFormat vp_fmt_;
+		bool hdr_output_ = false; // the swap chain is HDR10 (guarded by swap_mutex_)
+		std::function<void(bool)> on_hdr_changed_;
 		std::map<std::pair<ID3D11Texture2D *, UINT>, winrt::com_ptr<ID3D11VideoProcessorInputView>> input_views_;
 		winrt::com_ptr<ID3D11Texture2D> upload_texture_;
 		UINT upload_w_ = 0, upload_h_ = 0;
+		DXGI_FORMAT upload_format_ = DXGI_FORMAT_UNKNOWN;
 
 		// Mailbox
 		std::mutex frame_mutex_;

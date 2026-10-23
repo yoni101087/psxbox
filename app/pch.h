@@ -17,7 +17,7 @@
 
 // Direct3D / DXGI
 #include <d3d11_4.h>
-#include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #include <windows.ui.xaml.media.dxinterop.h>
 
 // Media Foundation
@@ -37,6 +37,8 @@
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Gaming.Input.h>
+#include <winrt/Windows.Graphics.Display.h>
+#include <winrt/Windows.Graphics.Display.Core.h>
 #include <winrt/Windows.Networking.h>
 #include <winrt/Windows.Networking.Connectivity.h>
 #include <winrt/Windows.Security.Authentication.Web.h>

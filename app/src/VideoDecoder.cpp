@@ -16,6 +16,7 @@ namespace psx
 	{
 		Fini();
 		renderer_ = renderer;
+		hdr_codec_ = chiaki_codec_is_hdr(codec);
 
 		const GUID subtype = chiaki_codec_is_h265(codec) ? MFVideoFormat_HEVC : MFVideoFormat_H264;
 		MFT_REGISTER_TYPE_INFO in_info = { MFMediaType_Video, subtype };
@@ -105,19 +106,34 @@ namespace psx
 
 	bool VideoDecoder::SetOutputType()
 	{
-		for(DWORD i = 0;; i++)
+		// HDR streams are 10-bit: prefer P010 (NV12 would cut them to 8 bits), else NV12.
+		com_ptr<IMFMediaType> type;
+		GUID chosen = {};
+		for(GUID want : { hdr_codec_ ? MFVideoFormat_P010 : MFVideoFormat_NV12, MFVideoFormat_NV12 })
 		{
-			com_ptr<IMFMediaType> type;
-			HRESULT hr = mft_->GetOutputAvailableType(0, i, type.put());
-			if(hr == MF_E_NO_MORE_TYPES)
+			for(DWORD i = 0; !type; i++)
+			{
+				com_ptr<IMFMediaType> t;
+				HRESULT hr = mft_->GetOutputAvailableType(0, i, t.put());
+				if(hr == MF_E_NO_MORE_TYPES)
+					break;
+				if(FAILED(hr))
+					return false;
+				GUID subtype = {};
+				t->GetGUID(MF_MT_SUBTYPE, &subtype);
+				if(subtype == want)
+				{
+					type = t;
+					chosen = want;
+				}
+			}
+			if(type)
 				break;
-			if(FAILED(hr))
-				return false;
-			GUID subtype = {};
-			type->GetGUID(MF_MT_SUBTYPE, &subtype);
-			if(subtype != MFVideoFormat_NV12)
-				continue;
-			hr = mft_->SetOutputType(0, type.get(), 0);
+		}
+
+		if(type)
+		{
+			HRESULT hr = mft_->SetOutputType(0, type.get(), 0);
 			if(FAILED(hr))
 			{
 				PSX_LOGE("Decoder SetOutputType failed: 0x%08x", hr);
@@ -141,9 +157,18 @@ namespace psx
 			mft_->GetOutputStreamInfo(0, &info);
 			provides_samples_ = (info.dwFlags & (MFT_OUTPUT_STREAM_PROVIDES_SAMPLES | MFT_OUTPUT_STREAM_CAN_PROVIDE_SAMPLES)) != 0;
 			output_buffer_size_ = info.cbSize;
+
+			// HDR when the stream says PQ; for a 10-bit stream that doesn't say, trust the HDR codec.
+			format_.format = chosen == MFVideoFormat_P010 ? DXGI_FORMAT_P010 : DXGI_FORMAT_NV12;
+			UINT32 transfer = 0;
+			if(SUCCEEDED(type->GetUINT32(MF_MT_TRANSFER_FUNCTION, &transfer)) && transfer != MFVideoTransFunc_Unknown)
+				format_.hdr = transfer == MFVideoTransFunc_2084;
+			else
+				format_.hdr = format_.format == DXGI_FORMAT_P010 && hdr_codec_;
+			PSX_LOGI("Decoder output: %s%s", format_.format == DXGI_FORMAT_P010 ? "P010" : "NV12", format_.hdr ? ", HDR (PQ)" : "");
 			return true;
 		}
-		PSX_LOGE("Decoder offers no NV12 output");
+		PSX_LOGE("Decoder offers no NV12 or P010 output");
 		return false;
 	}
 
@@ -247,12 +272,12 @@ namespace psx
 			UINT slice = 0;
 			if(SUCCEEDED(dxgi->GetResource(IID_PPV_ARGS(texture.put()))) && SUCCEEDED(dxgi->GetSubresourceIndex(&slice)))
 			{
-				renderer_->SubmitGpuFrame(sample, texture.get(), slice, frame_w_, frame_h_, aperture_);
+				renderer_->SubmitGpuFrame(sample, texture.get(), slice, frame_w_, frame_h_, aperture_, format_);
 				return;
 			}
 		}
 
-		// System memory NV12: repack tightly (stride == width) for the renderer.
+		// System memory NV12 / P010: repack tightly (no row padding) for the renderer.
 		BYTE *src = nullptr;
 		LONG pitch = 0;
 		com_ptr<IMF2DBuffer> buf2d = buffer.try_as<IMF2DBuffer>();
@@ -269,20 +294,21 @@ namespace psx
 			pitch = stride_ > 0 ? stride_ : static_cast<LONG>(frame_w_);
 		}
 
-		std::vector<uint8_t> nv12(static_cast<size_t>(frame_w_) * frame_h_ * 3 / 2);
-		uint8_t *dst = nv12.data();
+		const size_t row = static_cast<size_t>(frame_w_) * (format_.format == DXGI_FORMAT_P010 ? 2 : 1);
+		std::vector<uint8_t> data(row * frame_h_ * 3 / 2);
+		uint8_t *dst = data.data();
 		for(UINT y = 0; y < frame_h_; y++)
-			memcpy(dst + static_cast<size_t>(y) * frame_w_, src + static_cast<size_t>(y) * pitch, frame_w_);
+			memcpy(dst + y * row, src + static_cast<size_t>(y) * pitch, row);
 		const BYTE *uv_src = src + static_cast<size_t>(pitch) * frame_h_;
-		uint8_t *uv_dst = dst + static_cast<size_t>(frame_w_) * frame_h_;
+		uint8_t *uv_dst = dst + row * frame_h_;
 		for(UINT y = 0; y < frame_h_ / 2; y++)
-			memcpy(uv_dst + static_cast<size_t>(y) * frame_w_, uv_src + static_cast<size_t>(y) * pitch, frame_w_);
+			memcpy(uv_dst + y * row, uv_src + static_cast<size_t>(y) * pitch, row);
 
 		if(buf2d)
 			buf2d->Unlock2D();
 		else
 			buffer->Unlock();
 
-		renderer_->SubmitCpuFrame(std::move(nv12), frame_w_, frame_h_, aperture_);
+		renderer_->SubmitCpuFrame(std::move(data), frame_w_, frame_h_, aperture_, format_);
 	}
 }
