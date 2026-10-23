@@ -41,6 +41,7 @@ namespace psx
 		QuitCallback quit_cb_;
 		MicCallback mic_cb_;
 		bool ps5_layout_ = false;
+		std::atomic<bool> rumble_logged_{ false }; // first rumble of the session logged
 		std::atomic<bool> stop_{ false };
 		std::thread thread_;
 		std::mutex pad_mutex_;

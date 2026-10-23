@@ -27,6 +27,7 @@ namespace psx
 		quit_cb_ = std::move(quit_cb);
 		mic_cb_ = std::move(mic_cb);
 		ps5_layout_ = ps5_layout;
+		rumble_logged_ = false;
 		stop_ = false;
 		thread_ = std::thread([this] {
 			init_apartment(apartment_type::multi_threaded);
@@ -51,13 +52,7 @@ namespace psx
 		if(pads.Size() == 0)
 			pad_.reset();
 		else if(!pad_ || !pads.IndexOf(*pad_, index)) // none yet, or ours was disconnected
-		{
 			pad_ = pads.GetAt(0);
-			// Which controller (or adapter) this is, for recognising adapters later.
-			if(auto raw = RawGameController::FromGameController(*pad_))
-				PSX_LOGI("Controller: %s (vendor 0x%04X, product 0x%04X)", Narrow(raw.DisplayName()).c_str(),
-					raw.HardwareVendorId(), raw.HardwareProductId());
-		}
 		return pad_;
 	}
 
@@ -69,7 +64,13 @@ namespace psx
 			pad = pad_;
 		}
 		if(!pad)
+		{
+			if(!rumble_logged_.exchange(true))
+				PSX_LOGI("Rumble from the console, but no controller is connected");
 			return;
+		}
+		if(!rumble_logged_.exchange(true))
+			PSX_LOGI("Rumble from the console (%u, %u)", left, right);
 		GamepadVibration v = {};
 		v.LeftMotor = left / 255.0;
 		v.RightMotor = right / 255.0;
@@ -77,8 +78,9 @@ namespace psx
 		{
 			pad->Vibration(v);
 		}
-		catch(...)
+		catch(hresult_error const &e)
 		{
+			PSX_LOGE("Controller rumble failed: 0x%08x", static_cast<uint32_t>(e.code()));
 		}
 	}
 

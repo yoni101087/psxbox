@@ -6,7 +6,7 @@
   IgnorableNamespaces="uap mp">
 
   <!-- Publisher must match the subject of the signing certificate (see scripts/make-cert.ps1). -->
-  <Identity Name="PsXbox.RemotePlay" Publisher="CN=PsXboxDev" Version="0.4.3.0" />
+  <Identity Name="PsXbox.RemotePlay" Publisher="CN=PsXboxDev" Version="0.4.4.0" />
 
   <mp:PhoneIdentity PhoneProductId="4f7c2a8e-3b61-4d0e-9a52-7c1e5b9d2f10" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

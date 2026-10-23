@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.4.3
+## 0.4.4
 
+- **Controller rumble:** the controller is no longer also opened as a raw device (added in 0.3.1 to log its
+  name), which may have stopped rumble. The first rumble of each stream and any rumble error are now logged.
 - **HDR:** a new video codec setting, **H.265 HDR (PS5 only, HDR TV)**. The PS5 streams 10-bit HDR video,
   the app decodes it to P010 and shows it as HDR10, and on Xbox it switches the TV to HDR while HDR frames are
   shown (back to normal when the stream ends). SDR frames over the same codec are still shown in SDR. If the
