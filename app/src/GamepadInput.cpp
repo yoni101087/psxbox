@@ -20,11 +20,12 @@ namespace psx
 		Stop();
 	}
 
-	void GamepadInput::Start(StateCallback state_cb, QuitCallback quit_cb, bool ps5_layout)
+	void GamepadInput::Start(StateCallback state_cb, QuitCallback quit_cb, MicCallback mic_cb, bool ps5_layout)
 	{
 		Stop();
 		state_cb_ = std::move(state_cb);
 		quit_cb_ = std::move(quit_cb);
+		mic_cb_ = std::move(mic_cb);
 		ps5_layout_ = ps5_layout;
 		stop_ = false;
 		thread_ = std::thread([this] {
@@ -107,6 +108,7 @@ namespace psx
 		// What View alone and View + LB send (swapped in the PS5 layout, where View is the Create button).
 		const uint32_t view_alone = ps5_layout_ ? CHIAKI_CONTROLLER_BUTTON_SHARE : CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
 		const uint32_t view_lb = ps5_layout_ ? CHIAKI_CONTROLLER_BUTTON_TOUCHPAD : CHIAKI_CONTROLLER_BUTTON_SHARE;
+		bool mic_combo = false; // View + Y held (toggled once per press)
 
 		while(!stop_)
 		{
@@ -145,7 +147,21 @@ namespace psx
 					if(has(GamepadButtons::A)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_CROSS;
 					if(has(GamepadButtons::B)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_MOON;
 					if(has(GamepadButtons::X)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_BOX;
-					if(has(GamepadButtons::Y)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_PYRAMID;
+					// With View held, Y is the microphone toggle, not Triangle.
+					bool y = has(GamepadButtons::Y);
+					if(view && y)
+					{
+						if(!mic_combo)
+						{
+							mic_combo = true;
+							chord_canceled = true; // the View hold doesn't also send a chord
+							if(mic_cb_)
+								mic_cb_();
+						}
+					}
+					else if(!y)
+						mic_combo = false;
+					if(y && !view && !mic_combo) s.buttons |= CHIAKI_CONTROLLER_BUTTON_PYRAMID;
 					if(has(GamepadButtons::DPadLeft)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
 					if(has(GamepadButtons::DPadRight)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;
 					if(has(GamepadButtons::DPadUp)) s.buttons |= CHIAKI_CONTROLLER_BUTTON_DPAD_UP;

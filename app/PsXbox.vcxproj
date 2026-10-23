@@ -111,6 +111,7 @@
     <ClInclude Include="src\GamepadInput.h" />
     <ClInclude Include="src\HdrDisplay.h" />
     <ClInclude Include="src\Logger.h" />
+    <ClInclude Include="src\MicCapture.h" />
     <ClInclude Include="src\PsnAuth.h" />
     <ClInclude Include="src\Registration.h" />
     <ClInclude Include="src\Settings.h" />
@@ -153,6 +154,7 @@
     <ClCompile Include="src\GamepadInput.cpp" />
     <ClCompile Include="src\HdrDisplay.cpp" />
     <ClCompile Include="src\Logger.cpp" />
+    <ClCompile Include="src\MicCapture.cpp" />
     <ClCompile Include="src\PsnAuth.cpp" />
     <ClCompile Include="src\Registration.cpp" />
     <ClCompile Include="src\Settings.cpp" />

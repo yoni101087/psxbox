@@ -4,6 +4,7 @@
 
 #include "src/Discovery.h"
 #include "src/HdrDisplay.h"
+#include "src/MicCapture.h"
 #include "src/Registration.h"
 #include "src/StreamSession.h"
 #include "src/VideoRenderer.h"
@@ -57,6 +58,8 @@ namespace winrt::PsXbox::implementation
 		void ConnectTo(ConsoleEntry const &entry);
 		void StartStream(psx::RegisteredHost const &host, std::string const &addr);
 		void EndStream(std::string const &reason);
+		fire_and_forget StartMicrophone();
+		void ShowStreamMessage(hstring const &text);
 		void LoadSettingsUi();
 
 		Screen screen_ = Screen::Home;
@@ -70,6 +73,7 @@ namespace winrt::PsXbox::implementation
 
 		psx::VideoRenderer renderer_;
 		psx::HdrDisplay hdr_display_;
+		psx::MicCapture mic_;
 		bool panel_attached_ = false;
 		psx::StreamSession session_;
 		std::string pending_wake_mac_;

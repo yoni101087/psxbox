@@ -39,6 +39,11 @@
 #include <winrt/Windows.Gaming.Input.h>
 #include <winrt/Windows.Graphics.Display.h>
 #include <winrt/Windows.Graphics.Display.Core.h>
+#include <winrt/Windows.Media.h>
+#include <winrt/Windows.Media.Audio.h>
+#include <winrt/Windows.Media.Capture.h>
+#include <winrt/Windows.Media.MediaProperties.h>
+#include <winrt/Windows.Media.Render.h>
 #include <winrt/Windows.Networking.h>
 #include <winrt/Windows.Networking.Connectivity.h>
 #include <winrt/Windows.Security.Authentication.Web.h>
@@ -89,4 +94,5 @@ extern "C" {
 #include <chiaki/session.h>
 #include <chiaki/controller.h>
 #include <chiaki/opusdecoder.h>
+#include <chiaki/opusencoder.h>
 }

@@ -375,6 +375,7 @@ namespace winrt::PsXbox::implementation
 		SelectByTag(CodecBox(), static_cast<int>(s.codec));
 		BitrateBox().Text(s.bitrate_kbps ? to_hstring(s.bitrate_kbps) : hstring());
 		SelectByTag(ControllerBox(), s.ps5_layout ? 1 : 0);
+		MicrophoneSwitch().IsOn(s.microphone);
 		SettingsAccountIdBox().Text(psx::Widen(psx::Settings::Get().PsnAccountId()));
 		SettingsSignInStatus().Text(L"");
 
@@ -408,6 +409,7 @@ namespace winrt::PsXbox::implementation
 		std::string bitrate = Trim(psx::Narrow(BitrateBox().Text()));
 		s.bitrate_kbps = bitrate.empty() ? 0 : static_cast<unsigned int>(strtoul(bitrate.c_str(), nullptr, 10));
 		s.ps5_layout = SelectedTag(ControllerBox(), 0) == 1;
+		s.microphone = MicrophoneSwitch().IsOn();
 		std::string account_input = Trim(psx::Narrow(SettingsAccountIdBox().Text()));
 		std::string account_id = psx::NormalizeAccountId(account_input);
 		if(!account_input.empty() && account_id.empty())
@@ -598,6 +600,7 @@ namespace winrt::PsXbox::implementation
 			if(alive.expired())
 				return;
 			RunOnUi([this] {
+				StartMicrophone();
 				StreamStatus().Text(L"Connected. Hold View + Menu + LB + RB to leave.");
 				// Hide the hint after a few seconds.
 				auto timer = DispatcherTimer();
@@ -610,6 +613,11 @@ namespace winrt::PsXbox::implementation
 				});
 				timer.Start();
 			});
+		};
+		cb.microphone = [this, alive = std::weak_ptr<bool>(alive_)](bool on) {
+			if(alive.expired())
+				return;
+			RunOnUi([this, on] { ShowStreamMessage(on ? L"Microphone on" : L"Microphone muted"); });
 		};
 		cb.ended = [this, alive = std::weak_ptr<bool>(alive_)](std::string const &reason) {
 			if(alive.expired())
@@ -635,8 +643,38 @@ namespace winrt::PsXbox::implementation
 		}
 	}
 
+	fire_and_forget MainPage::StartMicrophone()
+	{
+		if(!psx::Settings::Get().Stream().microphone || screen_ != Screen::Stream)
+			co_return;
+		auto weak = get_weak();
+		bool ok = co_await mic_.StartAsync([this](const int16_t *samples, size_t frames) {
+			session_.PushMicrophone(samples, frames);
+		});
+		if(auto self = weak.get(); self && screen_ == Screen::Stream)
+			ShowStreamMessage(ok ? L"Microphone ready (muted). View + Y turns it on." : L"Microphone unavailable. See the log.");
+	}
+
+	void MainPage::ShowStreamMessage(hstring const &text)
+	{
+		if(screen_ != Screen::Stream)
+			return;
+		StreamStatus().Text(text);
+		StreamOverlay().Visibility(Visibility::Visible);
+		auto timer = DispatcherTimer();
+		timer.Interval(std::chrono::seconds(3));
+		// Get the timer from the sender: capturing it would keep it alive forever.
+		timer.Tick([this](IInspectable const &sender, IInspectable const &) {
+			sender.as<DispatcherTimer>().Stop();
+			if(screen_ == Screen::Stream)
+				StreamOverlay().Visibility(Visibility::Collapsed);
+		});
+		timer.Start();
+	}
+
 	void MainPage::EndStream(std::string const &reason)
 	{
+		mic_.Stop();
 		session_.Stop();
 		hdr_display_.Disable();
 		if(display_active_)

@@ -73,6 +73,11 @@ The app has a **Controls** screen (on the home screen) with a picture of the con
 The app switches the TV to HDR while HDR frames are shown and back when the stream ends. If the TV can't show
 HDR, it streams plain H.265 instead.
 
+**Microphone:** turn on **Settings → Microphone** and plug a headset into the controller. The microphone
+starts muted; press **View + Y** to turn it on or off (a message shows which). The first time, the Xbox asks
+whether the app may use the microphone. If it says the microphone is unavailable, check **Settings → Privacy
+& online safety → App privacy → Microphone** on the Xbox.
+
 **PS5 controller through an adapter** (such as the Brook Wingman XB3): choose it under **Settings →
 Controller**. The adapter makes it an Xbox controller, so Create is View, Options is Menu and L1 / R1 are
 LB / RB in the table below, with one difference: Create alone sends **Create**, and Create + L1 sends the

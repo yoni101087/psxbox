@@ -123,6 +123,7 @@
                     <ComboBoxItem Content="Xbox controller" Tag="0"/>
                     <ComboBoxItem Content="PS5 controller through an adapter (Brook Wingman XB3)" Tag="1"/>
                 </ComboBox>
+                <ToggleSwitch x:Name="MicrophoneSwitch" Header="Microphone (headset on the controller; View + Y turns it on and off)" Margin="0,8"/>
                 <TextBox x:Name="SettingsAccountIdBox" Header="PSN Account ID (filled in by Sign in with PSN)" Margin="0,8" IsSpellCheckEnabled="False"/>
                 <Button x:Name="SettingsSignInButton" Content="Sign in with PSN" Click="OnPsnSignInClick" Margin="0,4,0,0"/>
                 <TextBlock x:Name="SettingsSignInStatus" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
@@ -243,6 +244,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Style="{StaticResource Key}" Foreground="#FF3DDC84" Text="Hold View + Menu (1 s)"/>
                     <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource Does}" Foreground="#FF3DDC84" Text="PS5 home screen"/>
@@ -256,6 +258,8 @@
                     <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource Does}" Text="Options"/>
                     <TextBlock Grid.Row="5" Style="{StaticResource Key}" Text="View + Menu + LB + RB"/>
                     <TextBlock Grid.Row="5" Grid.Column="1" Style="{StaticResource Does}" Text="Leave the stream"/>
+                    <TextBlock Grid.Row="6" Style="{StaticResource Key}" Text="View + Y"/>
+                    <TextBlock Grid.Row="6" Grid.Column="1" Style="{StaticResource Does}" Text="Microphone on / off (Settings)"/>
                 </Grid>
 
                 <TextBlock Text="Face buttons" FontSize="24" FontWeight="SemiBold" Margin="0,20,0,6"/>

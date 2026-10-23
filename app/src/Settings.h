@@ -23,6 +23,8 @@ namespace psx
 		unsigned int bitrate_kbps = 0; // 0 = preset default
 		// A PS5 controller through an adapter (such as the Brook Wingman XB3), which turns Create into View.
 		bool ps5_layout = false;
+		// Send a headset microphone to the console (muted until View + Y).
+		bool microphone = false;
 	};
 
 	// Persists everything in ApplicationData.LocalSettings.

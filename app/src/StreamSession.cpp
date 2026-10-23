@@ -62,6 +62,20 @@ namespace psx
 		chiaki_opus_decoder_get_sink(&opus_, &sink);
 		chiaki_session_set_audio_sink(&session_, &sink);
 		chiaki_session_set_video_sample_cb(&session_, VideoCb, this);
+
+		// Microphone (Settings): starts muted on the console; View + Y turns it on.
+		mic_enabled_ = settings.microphone;
+		mic_connected_ = false;
+		mic_muted_ = true;
+		mic_frame_.clear();
+		connected_ = false;
+		chiaki_opus_encoder_init(&mic_encoder_, Logger::Get().Chiaki());
+		if(mic_enabled_)
+		{
+			ChiakiAudioHeader header;
+			chiaki_audio_header_set(&header, 2, 16, 48000, kMicFrameSamples);
+			chiaki_opus_encoder_header(&header, &mic_encoder_, &session_);
+		}
 		chiaki_session_set_event_cb(&session_, EventCb, this);
 
 		renderer_->StartThread();
@@ -86,6 +100,7 @@ namespace psx
 				if(!ended_sent_.exchange(true) && callbacks_.ended)
 					callbacks_.ended("");
 			},
+			[this] { ToggleMicrophone(); },
 			settings.ps5_layout);
 		return true;
 	}
@@ -99,6 +114,12 @@ namespace psx
 		chiaki_session_join(&session_);
 		chiaki_session_fini(&session_);
 		chiaki_opus_decoder_fini(&opus_);
+		{
+			std::lock_guard<std::mutex> lock(mic_mutex_);
+			chiaki_opus_encoder_fini(&mic_encoder_);
+			mic_encoder_ = {};
+			mic_enabled_ = false;
+		}
 		renderer_->StopThread();
 		video_.Fini();
 		audio_.Fini();
@@ -113,6 +134,7 @@ namespace psx
 		{
 			case CHIAKI_EVENT_CONNECTED:
 				PSX_LOGI("Connected");
+				self->connected_ = true;
 				if(self->callbacks_.connected)
 					self->callbacks_.connected();
 				break;
@@ -156,5 +178,57 @@ namespace psx
 	void StreamSession::AudioFrameCb(int16_t *buf, size_t samples_count, void *user)
 	{
 		static_cast<StreamSession *>(user)->audio_.Push(buf, samples_count);
+	}
+
+	void StreamSession::SetMicMuted(bool muted)
+	{
+		// Called with mic_mutex_ held. chiaki's parameter is reversed: true unmutes.
+		chiaki_session_toggle_microphone(&session_, !muted);
+		mic_muted_ = muted;
+		mic_frame_.clear();
+	}
+
+	void StreamSession::ToggleMicrophone()
+	{
+		bool on;
+		{
+			std::lock_guard<std::mutex> lock(mic_mutex_);
+			if(!mic_enabled_)
+			{
+				PSX_LOGI("Microphone is off in Settings");
+				return;
+			}
+			if(!connected_)
+				return;
+			if(!mic_connected_)
+			{
+				chiaki_session_connect_microphone(&session_);
+				mic_connected_ = true;
+			}
+			SetMicMuted(!mic_muted_);
+			on = !mic_muted_;
+		}
+		PSX_LOGI("Microphone %s", on ? "on" : "muted");
+		if(callbacks_.microphone)
+			callbacks_.microphone(on);
+	}
+
+	void StreamSession::PushMicrophone(const int16_t *samples, size_t frames)
+	{
+		std::lock_guard<std::mutex> lock(mic_mutex_);
+		if(!mic_enabled_ || mic_muted_)
+			return;
+		const size_t frame_len = kMicFrameSamples * 2;
+		for(size_t i = 0; i < frames * 2;)
+		{
+			size_t take = std::min(frame_len - mic_frame_.size(), frames * 2 - i);
+			mic_frame_.insert(mic_frame_.end(), samples + i, samples + i + take);
+			i += take;
+			if(mic_frame_.size() == frame_len)
+			{
+				chiaki_opus_encoder_frame(mic_frame_.data(), &mic_encoder_);
+				mic_frame_.clear();
+			}
+		}
 	}
 }

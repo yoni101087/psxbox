@@ -6,6 +6,9 @@
   the app decodes it to P010 and shows it as HDR10, and on Xbox it switches the TV to HDR while HDR frames are
   shown (back to normal when the stream ends). SDR frames over the same codec are still shown in SDR. If the
   TV can't show HDR, the app streams plain H.265 instead.
+- **Microphone:** a new **Microphone** setting sends a headset plugged into the controller to the console
+  (for voice chat in games and parties). It starts muted; **View + Y** turns it on and off, with a short
+  message on screen. The Xbox asks once for permission to use the microphone.
 
 ## 0.3.1
 

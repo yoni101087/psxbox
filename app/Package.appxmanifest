@@ -43,5 +43,7 @@
     <Capability Name="internetClientServer" />
     <!-- Required for LAN discovery, registration and streaming. -->
     <Capability Name="privateNetworkClientServer" />
+    <!-- Optional microphone (Settings), sent to the console. -->
+    <DeviceCapability Name="microphone" />
   </Capabilities>
 </Package>
