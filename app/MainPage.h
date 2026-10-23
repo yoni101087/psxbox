@@ -26,13 +26,15 @@ namespace winrt::PsXbox::implementation
 		void OnForgetConsolesClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnBackToHomeClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnRegisterClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
-		fire_and_forget OnPsnSignInClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
+		void OnPsnSignInClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
+		fire_and_forget OnSignInEdgeClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
+		void OnSignInCancelClick(IInspectable const &sender, Windows::UI::Xaml::RoutedEventArgs const &args);
 		void OnConsoleClicked(IInspectable const &sender, Windows::UI::Xaml::Controls::ItemClickEventArgs const &args);
 		void OnVideoPanelSizeChanged(IInspectable const &sender, Windows::UI::Xaml::SizeChangedEventArgs const &args);
 		void OnVideoPanelScaleChanged(Windows::UI::Xaml::Controls::SwapChainPanel const &sender, IInspectable const &args);
 
 	private:
-		enum class Screen { Home, Register, Settings, AddIp, Controls, Stream };
+		enum class Screen { Home, Register, Settings, AddIp, Controls, Stream, SignIn };
 
 		struct ConsoleEntry
 		{
@@ -58,6 +60,9 @@ namespace winrt::PsXbox::implementation
 		void ConnectTo(ConsoleEntry const &entry);
 		void StartStream(psx::RegisteredHost const &host, std::string const &addr);
 		void EndStream(std::string const &reason);
+		void SignInStatus(hstring const &text);
+		void LeaveSignIn();
+		fire_and_forget FinishSignIn(hstring code_or_address);
 		fire_and_forget StartMicrophone();
 		void ShowStreamMessage(hstring const &text);
 		void LoadSettingsUi();
@@ -74,6 +79,8 @@ namespace winrt::PsXbox::implementation
 		psx::VideoRenderer renderer_;
 		psx::HdrDisplay hdr_display_;
 		psx::MicCapture mic_;
+		Screen sign_in_from_ = Screen::Register; // where Sign in with PSN was selected
+		bool sign_in_done_ = false;
 		bool panel_attached_ = false;
 		psx::StreamSession session_;
 		std::string pending_wake_mac_;

@@ -307,6 +307,32 @@
             </StackPanel>
         </StackPanel>
 
+        <!-- Sign in with PSN: Sony's page in the app, so its redirect (with the login code) is caught -->
+        <Grid x:Name="SignInPanel" Visibility="Collapsed" Margin="48,27,48,27">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Sign in with PSN" Style="{StaticResource PanelTitle}"/>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Sign in with the PSN account you use on the console. The left stick moves the cursor; a USB keyboard types. PS Xbox continues by itself once you're signed in."/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                    <Button x:Name="SignInEdgeButton" Content="Use Edge instead" Click="OnSignInEdgeClick"/>
+                    <Button x:Name="SignInCancelButton" Content="Cancel" Click="OnSignInCancelClick"/>
+                </StackPanel>
+            </Grid>
+            <WebView x:Name="SignInWeb" Grid.Row="1"/>
+            <TextBlock x:Name="SignInStatusText" Grid.Row="2" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+        </Grid>
+
         <!-- Stream (full screen, ignores TV safe area) -->
         <Grid x:Name="StreamPanel" Visibility="Collapsed" Background="Black">
             <SwapChainPanel x:Name="VideoPanel"

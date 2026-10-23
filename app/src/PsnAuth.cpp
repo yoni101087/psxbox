@@ -77,6 +77,13 @@ namespace psx
 		return Uri(LoginUrl());
 	}
 
+	bool PsnIsRedirect(Uri const &uri)
+	{
+		std::wstring address = uri ? std::wstring(uri.AbsoluteUri()) : std::wstring();
+		std::wstring redirect = kRedirectUri;
+		return address.compare(0, redirect.size(), redirect) == 0;
+	}
+
 	IAsyncOperation<hstring> PsnAccountIdFromCodeAsync(hstring input)
 	{
 		std::string code = ExtractCode(Narrow(input));

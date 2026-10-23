@@ -84,6 +84,11 @@ namespace winrt::PsXbox::implementation
 				// B is a game button while streaming.
 				args.Handled(true);
 			}
+			else if(screen_ == Screen::SignIn)
+			{
+				args.Handled(true);
+				LeaveSignIn();
+			}
 			else if(screen_ != Screen::Home)
 			{
 				args.Handled(true);
@@ -96,6 +101,34 @@ namespace winrt::PsXbox::implementation
 		PreviewKeyDown([this](auto const &, KeyRoutedEventArgs const &args) {
 			if(screen_ == Screen::Stream)
 				args.Handled(true);
+		});
+
+		// Sign in with PSN: catch Sony's redirect, which carries the login code.
+		SignInWeb().NavigationStarting([this](WebView const &, WebViewNavigationStartingEventArgs const &args) {
+			if(screen_ != Screen::SignIn || !psx::PsnIsRedirect(args.Uri()))
+				return;
+			args.Cancel(true);
+			if(!sign_in_done_)
+			{
+				sign_in_done_ = true;
+				FinishSignIn(args.Uri().AbsoluteUri());
+			}
+		});
+		SignInWeb().DOMContentLoaded([](WebView const &web, WebViewDOMContentLoadedEventArgs const &) {
+			// Xbox: let the left stick drive a cursor in the page.
+			web.InvokeScriptAsync(L"eval", single_threaded_vector<hstring>({ L"try { navigator.gamepadInputEmulation = 'mouse'; } catch(e) {}" }));
+		});
+		SignInWeb().NavigationCompleted([this](WebView const &, WebViewNavigationCompletedEventArgs const &args) {
+			if(screen_ != Screen::SignIn || sign_in_done_)
+				return;
+			if(args.IsSuccess())
+			{
+				SignInStatusText().Text(L"");
+				return;
+			}
+			PSX_LOGE("PSN sign-in page failed to load (%d): %s", static_cast<int>(args.WebErrorStatus()),
+				args.Uri() ? psx::Narrow(args.Uri().AbsoluteUri()).c_str() : "");
+			SignInStatus(L"Sony's page didn't load. Check the network, or select Use Edge instead.");
 		});
 
 		suspend_token_ = Application::Current().Suspending([this](auto const &, SuspendingEventArgs const &) {
@@ -158,6 +191,7 @@ namespace winrt::PsXbox::implementation
 		AddIpPanel().Visibility(screen == Screen::AddIp ? Visibility::Visible : Visibility::Collapsed);
 		ControlsPanel().Visibility(screen == Screen::Controls ? Visibility::Visible : Visibility::Collapsed);
 		StreamPanel().Visibility(screen == Screen::Stream ? Visibility::Visible : Visibility::Collapsed);
+		SignInPanel().Visibility(screen == Screen::SignIn ? Visibility::Visible : Visibility::Collapsed);
 		if(screen == Screen::Controls)
 			ControlsPulse().Begin();
 		else
@@ -184,6 +218,9 @@ namespace winrt::PsXbox::implementation
 				ControlsBackButton().Focus(FocusState::Programmatic);
 				break;
 			case Screen::Stream:
+				break;
+			case Screen::SignIn:
+				SignInWeb().Focus(FocusState::Programmatic);
 				break;
 		}
 	}
@@ -495,10 +532,72 @@ namespace winrt::PsXbox::implementation
 		}
 	}
 
-	fire_and_forget MainPage::OnPsnSignInClick(IInspectable const &, RoutedEventArgs const &)
+	void MainPage::OnPsnSignInClick(IInspectable const &, RoutedEventArgs const &)
+	{
+		sign_in_from_ = screen_;
+		sign_in_done_ = false;
+		SignInStatus(L"");
+		SignInStatusText().Text(L"Loading Sony's sign-in page...");
+		Show(Screen::SignIn);
+		SignInWeb().Navigate(psx::PsnLoginUri());
+	}
+
+	void MainPage::OnSignInCancelClick(IInspectable const &, RoutedEventArgs const &)
+	{
+		LeaveSignIn();
+	}
+
+	void MainPage::SignInStatus(hstring const &text)
+	{
+		// The sign-in screen's own line, and the status line of the screen it was opened from.
+		SignInStatusText().Text(text);
+		(sign_in_from_ == Screen::Settings ? SettingsSignInStatus() : RegisterStatus()).Text(text);
+	}
+
+	void MainPage::LeaveSignIn()
+	{
+		SignInWeb().NavigateToString(L"");
+		if(screen_ == Screen::SignIn)
+			Show(sign_in_from_);
+	}
+
+	fire_and_forget MainPage::FinishSignIn(hstring code_or_address)
 	{
 		auto weak = get_weak();
-		bool on_register = screen_ == Screen::Register;
+		LeaveSignIn();
+		SignInStatus(L"Signed in to PSN. Getting your Account ID...");
+
+		hstring id;
+		hstring error;
+		try
+		{
+			id = co_await psx::PsnAccountIdFromCodeAsync(code_or_address);
+		}
+		catch(hresult_error const &e)
+		{
+			error = L"PSN sign-in failed: " + e.message();
+		}
+
+		auto self = weak.get();
+		if(!self)
+			co_return;
+		if(!error.empty())
+		{
+			SignInStatus(error);
+			co_return;
+		}
+		psx::Settings::Get().SetPsnAccountId(psx::Narrow(id));
+		AccountIdBox().Text(id);
+		SettingsAccountIdBox().Text(id);
+		SignInStatus(L"Signed in. Your PSN Account ID is filled in.");
+	}
+
+	fire_and_forget MainPage::OnSignInEdgeClick(IInspectable const &, RoutedEventArgs const &)
+	{
+		// Fallback: sign in in Edge and bring the code back by hand.
+		auto weak = get_weak();
+		LeaveSignIn();
+		bool on_register = sign_in_from_ == Screen::Register;
 		auto status = [this, on_register](hstring const &text) {
 			(on_register ? RegisterStatus() : SettingsSignInStatus()).Text(text);
 		};
