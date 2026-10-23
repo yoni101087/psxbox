@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0
+## 0.4.1
 
 - **HDR:** a new video codec setting, **H.265 HDR (PS5 only, HDR TV)**. The PS5 streams 10-bit HDR video,
   the app decodes it to P010 and shows it as HDR10, and on Xbox it switches the TV to HDR while HDR frames are
